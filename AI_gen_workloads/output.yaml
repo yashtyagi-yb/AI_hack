@@ -1,0 +1,62 @@
+type: YUGABYTE
+driver: com.yugabyte.Driver
+url: jdbc:yugabyte://{endpoint}:5433/yugabyte?sslmode=require&ApplicationName=featurebench&reWriteBatchedInserts=true&load-balance=true
+username: {username}
+password: {password}
+batchsize: 128
+isolation: READ_COMMITTED
+loaderthreads: 4
+terminals: 10
+collect_pg_stat_statements: true
+yaml_version: v1.0
+use_dist_in_explain: true
+works:
+    work:
+        time_secs: 300
+        rate: unlimited
+        warmup: 60
+microbenchmark:
+    class: com.oltpbenchmark.benchmarks.featurebench.customworkload.YBDefaultMicroBenchmark
+    properties:
+        setAutoCommit: true
+        create:
+            - drop table IF EXISTS table_locks;
+            - CREATE TABLE table_locks (lock_id VARCHAR(32) PRIMARY KEY, lock_info TEXT);
+        cleanup:
+            - drop table IF EXISTS table_locks;
+        loadRules:
+            - table: table_locks
+              count: 1
+              rows: 1000
+              columns:
+                    - name: lock_id
+                      count: 1
+                      util: HashedPrimaryStringGen
+                      params: [1,32]
+        executeRules:
+            - workload: TableLockSelect
+              time_secs: 120
+              run:
+                  - name: SelectLocksWaiting
+                    weight: 100
+                    queries:
+                        - query: SELECT * FROM table_locks WHERE lock_info LIKE '%WAIT%';
+                          bindings: []
+            - workload: TableLockUpdate
+              time_secs: 180
+              run:
+                  - name: UpdateLockStatus
+                    weight: 100
+                    queries:
+                        - query: UPDATE table_locks SET lock_info = 'Resolved' WHERE lock_id = ?;
+                          bindings:
+                              - util: HashedPrimaryStringGen
+                                params: [1,32]
+            - workload: TableLockDelete
+              time_secs: 150
+              run:
+                  - name: DeleteStaleLocks
+                    weight: 100
+                    queries:
+                        - query: DELETE FROM table_locks WHERE lock_info = 'Stale';
+                          bindings: []

@@ -1,62 +1,112 @@
 type: YUGABYTE
 driver: com.yugabyte.Driver
-url: jdbc:yugabyte://{endpoint}:5433/yugabyte?sslmode=require&ApplicationName=featurebench&reWriteBatchedInserts=true&load-balance=true
-username: {username}
-password: {password}
+url: jdbc:yugabytedb://localhost:5433/yugabyte?sslmode=require&ApplicationName=featurebench&reWriteBatchedInserts=true&load-balance=true
+username: yugabyte
+password: yugabyte
 batchsize: 128
 isolation: READ_COMMITTED
 loaderthreads: 4
-terminals: 10
+terminals: 2
 collect_pg_stat_statements: true
 yaml_version: v1.0
 use_dist_in_explain: true
 works:
-    work:
-        time_secs: 300
-        rate: unlimited
-        warmup: 60
+  work:
+    time_secs: 300
+    rate: unlimited
+    warmup: 60
 microbenchmark:
-    class: com.oltpbenchmark.benchmarks.featurebench.customworkload.YBDefaultMicroBenchmark
-    properties:
-        setAutoCommit: true
-        create:
-            - drop table IF EXISTS table_locks;
-            - CREATE TABLE table_locks (lock_id VARCHAR(32) PRIMARY KEY, lock_info TEXT);
-        cleanup:
-            - drop table IF EXISTS table_locks;
-        loadRules:
-            - table: table_locks
-              count: 1
-              rows: 1000
-              columns:
-                    - name: lock_id
-                      count: 1
-                      util: HashedPrimaryStringGen
-                      params: [1,32]
-        executeRules:
-            - workload: TableLockSelect
-              time_secs: 120
-              run:
-                  - name: SelectLocksWaiting
-                    weight: 100
-                    queries:
-                        - query: SELECT * FROM table_locks WHERE lock_info LIKE '%WAIT%';
-                          bindings: []
-            - workload: TableLockUpdate
-              time_secs: 180
-              run:
-                  - name: UpdateLockStatus
-                    weight: 100
-                    queries:
-                        - query: UPDATE table_locks SET lock_info = 'Resolved' WHERE lock_id = ?;
-                          bindings:
-                              - util: HashedPrimaryStringGen
-                                params: [1,32]
-            - workload: TableLockDelete
-              time_secs: 150
-              run:
-                  - name: DeleteStaleLocks
-                    weight: 100
-                    queries:
-                        - query: DELETE FROM table_locks WHERE lock_info = 'Stale';
-                          bindings: []
+  class: com.oltpbenchmark.benchmarks.featurebench.customworkload.YBDefaultMicroBenchmark
+  properties:
+    setAutoCommit: true
+    create:
+      - drop table IF EXISTS 'featurebench_table';
+      - CREATE TABLE featurebench_table (id int PRIMARY KEY, lock_status varchar(255));
+    cleanup:
+      - drop table IF EXISTS "featurebench_table";
+    loadRules:
+      - table: featurebench_table
+        count: 1
+        rows: 1000
+        columns:
+          - name: id
+            count: 1
+            util: PrimaryIntGen
+            params: [1,1000]
+    executeRules:
+      - workload: lock_test_workload_1
+        time_secs: 300
+        run:
+          - name: select_by_id
+            weight: 100
+            queries:
+              - query: SELECT * FROM featurebench_table WHERE id = ?
+                bindings:
+                  - util: RandomInt
+                    params: [1,1000]
+      - workload: lock_test_workload_2
+        time_secs: 300
+        run:
+          - name: update_lock_status
+            weight: 100
+            queries:
+              - query: UPDATE featurebench_table SET lock_status = 'locked' WHERE id = ?
+                bindings:
+                  - util: PrimaryIntRandomForExecutePhase
+                    params: [1,1000]
+      - workload: lock_test_workload_3
+        time_secs: 300
+        run:
+          - name: delete_locked_row
+            weight: 100
+            queries:
+              - query: DELETE FROM featurebench_table WHERE lock_status = 'locked' AND id = ?
+                bindings:
+                  - util: PrimaryIntRandomForExecutePhase
+                    params: [1,1000]
+      - workload: lock_test_workload_4
+        time_secs: 300
+        run:
+          - name: insert_new_row
+            weight: 100
+            queries:
+              - query: INSERT INTO featurebench_table (id, lock_status) VALUES (?, 'new')
+                bindings:
+                  - util: PrimaryIntRandomForExecutePhase
+                    params: [1,1000]
+      - workload: lock_test_workload_5
+        time_secs: 300
+        run:
+          - name: select_for_update
+            weight: 100
+            queries:
+              - query: SELECT lock_status FROM featurebench_table WHERE id = ? FOR UPDATE
+                bindings:
+                  - util: RandomInt
+                    params: [1,1000]
+      - workload: lock_test_workload_6
+        time_secs: 300
+        run:
+          - name: toggle_lock_status
+            weight: 100
+            queries:
+              - query: UPDATE featurebench_table SET lock_status = CASE WHEN lock_status = 'locked' THEN 'unlocked' ELSE 'locked' END WHERE id = ?
+                bindings:
+                  - util: RandomInt
+                    params: [1,1000]
+      - workload: lock_test_workload_7
+        time_secs: 300
+        run:
+          - name: count_locked_rows
+            weight: 100
+            queries:
+              - query: SELECT count(*) FROM featurebench_table WHERE lock_status = 'locked'
+                bindings: []
+      - workload: lock_test_workload_8
+        time_secs: 300
+        run:
+          - name: bulk_update_lock_status
+            weight: 100
+            queries:
+              - query: UPDATE featurebench_table SET lock_status = 'testing' WHERE id IN (SELECT id FROM featurebench_table WHERE lock_status = 'locked' LIMIT 10)
+                bindings: []

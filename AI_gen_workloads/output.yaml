@@ -20,93 +20,122 @@ microbenchmark:
   properties:
     setAutoCommit: true
     create:
-      - drop table IF EXISTS 'featurebench_table';
-      - CREATE TABLE featurebench_table (id int PRIMARY KEY, lock_status varchar(255));
+      - drop table IF EXISTS index_table;
+      - CREATE TABLE index_table (id INT PRIMARY KEY, value TEXT, some_numeric FLOAT, uuid UUID)
+      - CREATE INDEX idx_value ON index_table (value)
     cleanup:
-      - drop table IF EXISTS "featurebench_table";
+      - drop table IF EXISTS index_table;
     loadRules:
-      - table: featurebench_table
+      - table: index_table
         count: 1
-        rows: 1000
+        rows: 100000
         columns:
           - name: id
             count: 1
             util: PrimaryIntGen
-            params: [1,1000]
+            params: [1,100000]
     executeRules:
-      - workload: lock_test_workload_1
+      - workload: IndexLookup
         time_secs: 300
         run:
-          - name: select_by_id
+          - name: QueryIndexLookup
             weight: 100
             queries:
-              - query: SELECT * FROM featurebench_table WHERE id = ?
+              - query: SELECT * FROM index_table WHERE id = ?
                 bindings:
-                  - util: RandomInt
-                    params: [1,1000]
-      - workload: lock_test_workload_2
+                  - util: PrimaryIntGen
+                    params: [1,100000]
+      - workload: RangeScan
         time_secs: 300
         run:
-          - name: update_lock_status
+          - name: QueryRangeScan
             weight: 100
             queries:
-              - query: UPDATE featurebench_table SET lock_status = 'locked' WHERE id = ?
+              - query: SELECT * FROM index_table WHERE id BETWEEN ? AND ?
                 bindings:
-                  - util: PrimaryIntRandomForExecutePhase
-                    params: [1,1000]
-      - workload: lock_test_workload_3
+                  - util: PrimaryIntGen
+                    params: [1,100000]
+      - workload: TextSearch
         time_secs: 300
         run:
-          - name: delete_locked_row
+          - name: QueryTextSearch
             weight: 100
             queries:
-              - query: DELETE FROM featurebench_table WHERE lock_status = 'locked' AND id = ?
+              - query: SELECT * FROM index_table WHERE value = ?
                 bindings:
-                  - util: PrimaryIntRandomForExecutePhase
-                    params: [1,1000]
-      - workload: lock_test_workload_4
+                  - util: HashedPrimaryStringGen
+                    params: [1,10]
+      - workload: AggregationQuery
         time_secs: 300
         run:
-          - name: insert_new_row
+          - name: QueryAggregation
             weight: 100
             queries:
-              - query: INSERT INTO featurebench_table (id, lock_status) VALUES (?, 'new')
+              - query: SELECT AVG(some_numeric) FROM index_table WHERE id > ?
                 bindings:
-                  - util: PrimaryIntRandomForExecutePhase
-                    params: [1,1000]
-      - workload: lock_test_workload_5
+                  - util: PrimaryIntGen
+                    params: [1,100000]
+      - workload: UniqueIndexScan
         time_secs: 300
         run:
-          - name: select_for_update
+          - name: QueryUniqueIndexScan
             weight: 100
             queries:
-              - query: SELECT lock_status FROM featurebench_table WHERE id = ? FOR UPDATE
+              - query: SELECT * FROM index_table WHERE uuid = ?
                 bindings:
-                  - util: RandomInt
-                    params: [1,1000]
-      - workload: lock_test_workload_6
+                  - util: RandomUUID
+                    params: []
+      - workload: CompositeIndexQuery
         time_secs: 300
         run:
-          - name: toggle_lock_status
+          - name: QueryCompositeIndex
             weight: 100
             queries:
-              - query: UPDATE featurebench_table SET lock_status = CASE WHEN lock_status = 'locked' THEN 'unlocked' ELSE 'locked' END WHERE id = ?
+              - query: SELECT * FROM index_table WHERE id = ? AND value = ?
                 bindings:
-                  - util: RandomInt
-                    params: [1,1000]
-      - workload: lock_test_workload_7
+                  - util: PrimaryIntGen
+                    params: [1,100000]
+                  - util: HashedRandomString
+                    params: [1,100,10]
+      - workload: PartialIndexQuery
         time_secs: 300
         run:
-          - name: count_locked_rows
+          - name: QueryPartialIndex
             weight: 100
             queries:
-              - query: SELECT count(*) FROM featurebench_table WHERE lock_status = 'locked'
-                bindings: []
-      - workload: lock_test_workload_8
+              - query: SELECT * FROM index_table WHERE value LIKE ?
+                bindings:
+                  - util: RandomStringAlphabets
+                    params: [5,5]
+      - workload: CoveringIndexQuery
         time_secs: 300
         run:
-          - name: bulk_update_lock_status
+          - name: QueryCoveringIndex
             weight: 100
             queries:
-              - query: UPDATE featurebench_table SET lock_status = 'testing' WHERE id IN (SELECT id FROM featurebench_table WHERE lock_status = 'locked' LIMIT 10)
-                bindings: []
+              - query: SELECT value FROM index_table WHERE value IN (?,?,?)
+                bindings:
+                  - util: OneStringFromArray
+                    params: [alpha,beta,gamma]
+      - workload: MultiColumnIndexScan
+        time_secs: 300
+        run:
+          - name: QueryMultiColumnIndexScan
+            weight: 100
+            queries:
+              - query: SELECT * FROM index_table WHERE id = ? AND some_numeric = ?
+                bindings:
+                  - util: PrimaryIntGen
+                    params: [1,100000]
+                  - util: PrimaryFloatGen
+                    params: [0.0,1000.0,2]
+      - workload: FallbackIndexQuery
+        time_secs: 300
+        run:
+          - name: QueryFallbackIndex
+            weight: 100
+            queries:
+              - query: SELECT * FROM index_table LIMIT ?
+                bindings:
+                  - util: RowRandomBoundedInt
+                    params: [1,100]

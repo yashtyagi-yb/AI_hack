@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { v4 as uuidv4 } from 'uuid';
 import "./App.css";
 
 export default function App() {
@@ -12,7 +13,7 @@ export default function App() {
   function getSessionId() {
     let sessionId = localStorage.getItem("session_id");
     if (!sessionId) {
-      sessionId = crypto.randomUUID().toString();
+      const sessionId = uuidv4();
       localStorage.setItem("session_id", sessionId);
     }
     return sessionId;

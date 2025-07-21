@@ -281,4 +281,8 @@ async def gen_yaml(input: QueryInput):
     return Response(content=yaml_output['response'], media_type="text/plain", status_code=200)
 
 
+<<<<<<< HEAD
 uvicorn.run(app, host="0.0.0.0", port=3032)
+=======
+uvicorn.run(app, host="0.0.0.0", port=3031)
+>>>>>>> 85fd9ca (minor change)

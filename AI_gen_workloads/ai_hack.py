@@ -18,7 +18,7 @@ from flask_cors import CORS
 load_dotenv()
 
 llm = ChatOpenAI(
-    model="o3-mini",
+    model="o4-mini",
     max_retries=2,
     openai_api_key=os.getenv("OPENAI_API_KEY"),
 )

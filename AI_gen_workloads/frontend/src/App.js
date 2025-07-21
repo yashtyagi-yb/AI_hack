@@ -9,13 +9,23 @@ export default function App() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  function getSessionId() {
+    let sessionId = localStorage.getItem("session_id");
+    if (!sessionId) {
+      sessionId = crypto.randomUUID().toString();
+      localStorage.setItem("session_id", sessionId);
+    }
+    return sessionId;
+  }
+
   async function fetchReply(userText) {
-    const apiUrl = "http://172.151.18.106:3030/gen_yaml";
+    const apiUrl = "http://127.0.0.1:3031/gen_yaml";
+    const sid=getSessionId();
     try {
       const res = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: userText }),
+        body: JSON.stringify({ session_id: sid, query: userText }),
       });
       if (!res.ok) throw new Error(res.statusText);
   

@@ -1,141 +1,66 @@
+---
+
 type: YUGABYTE
 driver: com.yugabyte.Driver
-url: jdbc:yugabytedb://localhost:5433/yugabyte?sslmode=require&ApplicationName=featurebench&reWriteBatchedInserts=true&load-balance=true
-username: yugabyte
-password: yugabyte
+url: jdbc:yugabytedb://{endpoint}:5433/yugabyte?sslmode=require&ApplicationName=featurebench&reWriteBatchedInserts=true&load-balance=true
+username: {username}
+password: {password}
 batchsize: 128
-isolation: READ_COMMITTED
-loaderthreads: 4
-terminals: 2
+isolation: TRANSACTION_REPEATABLE_READ
+loaderthreads: 1
+terminals: 1
 collect_pg_stat_statements: true
 yaml_version: v1.0
 use_dist_in_explain: true
 works:
-  work:
-    time_secs: 300
-    rate: unlimited
-    warmup: 60
+    work:
+        time_secs: 300
+        rate: unlimited
+        warmup: 60
 microbenchmark:
-  class: com.oltpbenchmark.benchmarks.featurebench.customworkload.YBDefaultMicroBenchmark
-  properties:
-    setAutoCommit: true
-    create:
-      - drop table IF EXISTS index_table;
-      - CREATE TABLE index_table (id INT PRIMARY KEY, value TEXT, some_numeric FLOAT, uuid UUID)
-      - CREATE INDEX idx_value ON index_table (value)
-    cleanup:
-      - drop table IF EXISTS index_table;
-    loadRules:
-      - table: index_table
-        count: 1
-        rows: 100000
-        columns:
-          - name: id
-            count: 1
-            util: PrimaryIntGen
-            params: [1,100000]
-    executeRules:
-      - workload: IndexLookup
-        time_secs: 300
-        run:
-          - name: QueryIndexLookup
-            weight: 100
-            queries:
-              - query: SELECT * FROM index_table WHERE id = ?
-                bindings:
-                  - util: PrimaryIntGen
-                    params: [1,100000]
-      - workload: RangeScan
-        time_secs: 300
-        run:
-          - name: QueryRangeScan
-            weight: 100
-            queries:
-              - query: SELECT * FROM index_table WHERE id BETWEEN ? AND ?
-                bindings:
-                  - util: PrimaryIntGen
-                    params: [1,100000]
-      - workload: TextSearch
-        time_secs: 300
-        run:
-          - name: QueryTextSearch
-            weight: 100
-            queries:
-              - query: SELECT * FROM index_table WHERE value = ?
-                bindings:
-                  - util: HashedPrimaryStringGen
-                    params: [1,10]
-      - workload: AggregationQuery
-        time_secs: 300
-        run:
-          - name: QueryAggregation
-            weight: 100
-            queries:
-              - query: SELECT AVG(some_numeric) FROM index_table WHERE id > ?
-                bindings:
-                  - util: PrimaryIntGen
-                    params: [1,100000]
-      - workload: UniqueIndexScan
-        time_secs: 300
-        run:
-          - name: QueryUniqueIndexScan
-            weight: 100
-            queries:
-              - query: SELECT * FROM index_table WHERE uuid = ?
-                bindings:
-                  - util: RandomUUID
-                    params: []
-      - workload: CompositeIndexQuery
-        time_secs: 300
-        run:
-          - name: QueryCompositeIndex
-            weight: 100
-            queries:
-              - query: SELECT * FROM index_table WHERE id = ? AND value = ?
-                bindings:
-                  - util: PrimaryIntGen
-                    params: [1,100000]
-                  - util: HashedRandomString
-                    params: [1,100,10]
-      - workload: PartialIndexQuery
-        time_secs: 300
-        run:
-          - name: QueryPartialIndex
-            weight: 100
-            queries:
-              - query: SELECT * FROM index_table WHERE value LIKE ?
-                bindings:
-                  - util: RandomStringAlphabets
-                    params: [5,5]
-      - workload: CoveringIndexQuery
-        time_secs: 300
-        run:
-          - name: QueryCoveringIndex
-            weight: 100
-            queries:
-              - query: SELECT value FROM index_table WHERE value IN (?,?,?)
-                bindings:
-                  - util: OneStringFromArray
-                    params: [alpha,beta,gamma]
-      - workload: MultiColumnIndexScan
-        time_secs: 300
-        run:
-          - name: QueryMultiColumnIndexScan
-            weight: 100
-            queries:
-              - query: SELECT * FROM index_table WHERE id = ? AND some_numeric = ?
-                bindings:
-                  - util: PrimaryIntGen
-                    params: [1,100000]
-                  - util: PrimaryFloatGen
-                    params: [0.0,1000.0,2]
-      - workload: FallbackIndexQuery
-        time_secs: 300
-        run:
-          - name: QueryFallbackIndex
-            weight: 100
-            queries:
-              - query: SELECT * FROM index_table LIMIT ?
-                bindings:
-                  - util: RowRandomBoundedInt
-                    params: [1,100]
+    class: com.oltpbenchmark.benchmarks.featurebench.customworkload.YBDefaultMicroBenchmark
+    properties:
+        setAutoCommit: true
+        create:
+            - drop table IF EXISTS test_table;
+            - create table test_table(id int primary key, name varchar(20), value int, category varchar(20));
+            - create index composite_index on test_table(value, category);
+
+        cleanup:
+            - drop table IF EXISTS test_table;
+
+        loadRules:
+            - table: test_table
+              count: 1
+              rows: 100000
+              columns:
+                    - name: id
+                      count: 1
+                      util: PrimaryIntGen
+                      params: [1, 100000]
+                    - name: name
+                      count: 1
+                      util: RandomAString
+                      params: [5, 20]
+                    - name: value
+                      count: 1
+                      util: RandomInt
+                      params: [1, 1000]
+                    - name: category
+                      count: 1
+                      util: OneStringFromArray
+                      params: [['A', 'B', 'C', 'D']]
+
+        executeRules:
+            - workload: index_scan_workload
+              time_secs: 120
+              run:
+                  - name: scan_test
+                    weight: 100
+                    queries:
+                        - query: select * from test_table where value > ? and category = ? limit 100;
+                          bindings:
+                            - util: RandomInt
+                              params: [1, 1000]
+                            - util: OneStringFromArray
+                              params: [['A', 'B', 'C', 'D']]

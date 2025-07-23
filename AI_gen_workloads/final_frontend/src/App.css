@@ -1,0 +1,147 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: #F3F3ED;
+}
+
+.App{
+  position: relative;
+  height: 100%;
+}
+
+.main{
+  width: 92%;
+  position: absolute;
+  right: 0;
+  background-color: #FCFCF9;
+  border-radius: 20px;
+  height: 94vh;
+  margin: 3vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.sidebar{
+  width: fit-content;
+  position: absolute;
+  left: 0;
+  height: 92vh;
+  margin: 4vh 0vh 4vh 3vh;
+}
+
+.history{
+  display: none;
+  position: absolute;
+  right: 0;
+}
+
+.icons{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  position: absolute;
+  left: 0;
+  height: 100%;
+}
+
+.usable-icons, .control-icons{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.search-box{
+  background-color: white;
+  height: 15vh;
+  width: 60%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 20px;
+  border: 1px solid #22808d;
+}
+
+.search-ip{
+  border: none;
+  height: 45%;
+  width: 99%;
+  font-size: 16px;
+  border-radius: 20px 20px 0 0;
+}
+
+.search-submit{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding-top: 10px;
+}
+
+.search-submit p{
+  border: 2px solid #22808d;
+  color: #22808d;
+  border-radius: 8px;
+  padding: 7px;
+  cursor: pointer;
+  margin: 10px;
+}
+
+.search-submit-btn{
+  background-color: #22808d;
+  color: white;
+  border: none;
+  font-size: 16px;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin: 10px;
+}
+
+.conversation{
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  margin: 5%;
+}
+
+.messages{
+  width: 60%;
+  height: 80vh;
+  padding: 20px;
+  overflow: scroll;
+}
+
+.user{
+  font-size: 20px;
+  padding: 15px;
+  text-align: right;
+  background-color: #bdeff5;
+}
+
+.bot{
+  padding: 20px;
+}
+
+.bot-msg-icons{
+  display: flex;
+  gap: 10px;
+}
+
+.bot-msg-icons *{
+  height: 20px;
+  width: 20px;
+  padding: 2px;
+}
+
+.bot-msg-icons .active{
+  border-bottom: 2px solid #22808d;
+}

@@ -20,7 +20,7 @@ export default function App() {
   }
 
   async function fetchReply(userText) {
-    const apiUrl = "http://127.0.0.1:3031/gen_yaml";
+    const apiUrl = "http://0.0.0.0:3032/gen_yaml";
     const sid=getSessionId();
     try {
       const res = await fetch(apiUrl, {

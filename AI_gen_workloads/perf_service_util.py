@@ -80,6 +80,8 @@ class PerfServiceClient:
                 return False, "Test has FAILED, please check for logs"
             elif test_status == "RUNNING":
                 return False, f"Your test is RUNNING.. Details can be found at {self.dashboard_url}/dashboard/output/{test_id}"
+            elif test_status == "QUEUED":
+                return False, f"Your test will start soon. Details can be found at {self.dashboard_url}/dashboard/output/{test_id}"
             else:
                 return False, f"Unknown Status: {test_status}"
         else:

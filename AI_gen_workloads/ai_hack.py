@@ -14,7 +14,7 @@ from pydantic import BaseModel
 import uvicorn
 import nest_asyncio
 from fastapi.middleware.cors import CORSMiddleware
-import perf_service_util
+from perf_service_util import PerfServiceClient
 
 load_dotenv()
 
@@ -268,8 +268,11 @@ async def gen_yaml(input: QueryInput):
         output = output[:output.index('###')] + output[output.rindex('###') + 3:]
 
     if "Your workload is running..." in output:
-        run_test(saved_yaml)
         print(saved_yaml)
+        client = PerfServiceClient()
+        test_id = client.run_test(saved_yaml)
+        message = client.get_test_status(test_id)
+        print(message)
 
     print(output)
     return JSONResponse(

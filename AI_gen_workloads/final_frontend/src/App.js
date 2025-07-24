@@ -47,10 +47,7 @@ export default function App() {
   
       const data = await res.json();
       if(data.yaml!='')
-      {
         setYAML(data.yaml);
-        data.text="Your YAML has been created! Its Executing...";
-      }
       return data.text;
     } catch (err) {
       console.error(err);

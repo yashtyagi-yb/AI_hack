@@ -2,21 +2,19 @@ from langchain.prompts import ChatPromptTemplate
 from langchain.chains import LLMChain, SequentialChain, ConversationChain
 from langchain.memory import ConversationBufferMemory
 import yaml, json
-import perf_service_util
 
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 import os
 from dotenv import load_dotenv
 import requests
-
 from fastapi import FastAPI, Request
 from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel
 import uvicorn
 import nest_asyncio
 from fastapi.middleware.cors import CORSMiddleware
-
+import perf_service_util
 
 load_dotenv()
 
@@ -105,20 +103,18 @@ You are an agent who generates a query based on user input and helps the user by
 35. RandomTimestampWithTimezoneBtwMonths[startMonth, endMonth]
 
 **YAML Generation Rules**
+
 1. Users will describe a workload in natural language. 
 2. You should handle basic chit-chat and small talks effectively but remember that you are a YAML generator. Do not use technical terms like YAML, microbenchmark, etc. BE SIMPLE AND CRISP.
-3. If the description is relevant, summarize the benchmark. Print SQL statements for DDLs and DMLs to be used without any description and generate YAML. Ask **once** for confirmation to evaluate the workload. Do not repeat the question.
-4. Once user confirms with yes, output **only** the complete YAML using the template format. When input is incomplete, assume defaults but still generate the YAML. Nothing else should be returned. If the user responds with 'no', ask for further changes.
+3. If the description is relevant, summarize the benchmark. Print SQL statements for DDLs and DMLs to be used without any description and generate YAML along with it enclosed within ###. When input is incomplete, assume defaults but still generate the YAML. Ask for confirmation to evaluate the workload.
+4. Once user confirms with yes, output "Your workload is running..." **only**. Nothing else should be returned. If the user responds with 'no', ask for further changes. Don't cross question when asked to make change.
 5. Carefully take reference from the Sample YAMLs to understand the syntax of output YAML. Write different workloads for different queries.
 6. Use only the utility functions listed. No custom logic outside of these.
 7. Use empty `bindings` if a query doesn't need dynamic parameters.
-8. Ask the user for any changes in YAML. If user asks to make any changes, output the new YAML with new changes. Don't cross question when asked to make changes.
-9. Ask whether user is satisfied and if the user is **satisfied** only then ask user "Should I run this workload now?". If user agrees, respond **only** with **Running your YAML**.
 
 **Sample YAMLs for reference**
----
+
 {all_yamls}
----
 
 **YAML Template Format**
 
@@ -236,6 +232,8 @@ class QueryInput(BaseModel):
 
 @app.post("/refresh")
 async def refresh_memory(input: QueryInput):
+    global saved_yaml
+    saved_yaml = ''
     chain = get_chains_for_session(input.session_id, session_store)
     if chain.get("chat_pipe") and hasattr(chain["chat_pipe"], "memory"):
         chain["chat_pipe"].memory.clear()
@@ -245,6 +243,7 @@ async def refresh_memory(input: QueryInput):
 
 @app.post("/gen_yaml")
 async def gen_yaml(input: QueryInput):
+    global saved_yaml  # Declare to modify the global variable
     chain = get_chains_for_session(input.session_id, session_store)
 
     pipeline = chain['pipeline']
@@ -253,25 +252,24 @@ async def gen_yaml(input: QueryInput):
     query_text = input.query
 
     if not isinstance(query_text, str) or not query_text.strip():
-        abort(make_response(jsonify(error="'query' must be a non‑empty string"), 400))
+        return JSONResponse(content={"error": "'query' must be a non-empty string"}, status_code=400)
 
     yaml_output = pipeline.invoke({"input": query_text.strip()})
     output = yaml_output['text']
+    print(output)
+
     response = chat_llm.invoke(
-        f"Check whether this output is a YAML file or not. Here's the output : {yaml_output['text']}. Answer **only** either 'Yes' or 'No'")
+        f"Check whether this output contains a YAML file or not. Here's the output : {output}. Answer **only** either 'Yes' or 'No'"
+    )
     print(response.content)
-    if response.content == "Yes":
-        global saved_yaml
-        saved_yaml = yaml_output['text']
-        # perf_service_util.run_test(saved_yaml)
-    if "Running your test..." in yaml_output['text']:
+
+    if response.content.strip() == "Yes":
+        saved_yaml = output[output.index('###') + 3:output.rindex('###')]
+        output = output[:output.index('###')] + output[output.rindex('###') + 3:]
+
+    if "Your workload is running..." in output:
+        run_test(saved_yaml)
         print(saved_yaml)
-        # perf_service_util.run_test(saved_yaml)
-
-        real_yaml = saved_yaml.encode().decode('unicode_escape')
-        with open("output.yaml", "w") as f:
-            f.write(real_yaml)
-
 
     print(output)
     return JSONResponse(

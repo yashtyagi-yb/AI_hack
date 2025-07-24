@@ -69,7 +69,7 @@ html, body {
 .search-ip{
   border: none;
   height: 45%;
-  width: 99%;
+  width: 99.5%;
   font-size: 16px;
   border-radius: 20px 20px 0 0;
 }
@@ -118,17 +118,29 @@ html, body {
   height: 80vh;
   padding: 20px;
   overflow: scroll;
+  display: flex;
+  flex-direction: column;
+}
+
+.msg{
+  margin: 10px 0;
 }
 
 .user{
   font-size: 20px;
   padding: 15px;
-  text-align: right;
-  background-color: #bdeff5;
+  align-self: flex-end;
+  background-color: #193639;
+  width: fit-content;
+  border-radius: 15px;
+  color: white;
 }
 
 .bot{
   padding: 20px;
+  border: 1px solid #193639;
+  border-radius: 15px;
+  width: fit-content;
 }
 
 .bot-msg-icons{

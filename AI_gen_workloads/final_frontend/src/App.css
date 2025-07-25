@@ -74,6 +74,10 @@ html, body {
   border-radius: 20px 20px 0 0;
 }
 
+.search-ip:focus{
+  outline: none;
+}
+
 .search-submit{
   display: flex;
   flex-direction: row;

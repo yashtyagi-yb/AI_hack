@@ -155,20 +155,19 @@ async def gen_yaml(input: QueryInput):
         output = output[:output.index('###')] + output[output.rindex('$$$') + 3:]
 
     if "Running your workload..." in output:
-
-
         print(saved_yb_yaml)
         print(saved_pg_yaml)
         config = configparser.ConfigParser()
         config.read('config.properties')
-        client_yb = PerfServiceClient(config['YB']['endpoint'], config['YB']['username'], config['YB']['password'], config['YB']['client_ip_addr'])
-        client_pg = PerfServiceClient(config['PG']['endpoint'], config['PG']['username'], config['PG']['password'], config['PG']['client_ip_addr'])
-        test_id_yb = client_yb.run_test(saved_yb_yaml)
-        test_id_pg = client_pg.run_test(saved_pg_yaml)
-        message_yb = client_yb.get_test_status(test_id_yb)
-        message_pg = client_yb.get_test_status(test_id_pg)
-        client_yb.get_test_report(test_id_yb, test_id_pg)
-        print(message_yb + message_pg)
+        client_yb = PerfServiceClient(config['YB']['endpoint'], config['YB']['username'], config['YB']['password'],
+                                      config['YB']['client_ip_addr'],config['YB']['provider'])
+        client_pg = PerfServiceClient(config['PG']['endpoint'], config['PG']['username'], config['PG']['password'],
+                                      config['PG']['client_ip_addr'],config['PG']['provider'])
+        test_id_yb,msg = client_yb.run_test(saved_yb_yaml)
+        print(msg)
+        test_id_pg,msg = client_pg.run_test(saved_pg_yaml)
+        print(msg)
+        #print(client_yb.get_test_status(test_id_yb, test_id_pg))
 
     print(output)
     return JSONResponse(

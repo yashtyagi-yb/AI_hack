@@ -10,15 +10,17 @@ import { FaCirclePlus } from "react-icons/fa6";
 import { FaLocationArrow } from "react-icons/fa";
 import { IoLogIn } from "react-icons/io5";
 import { IoIosText } from "react-icons/io";
-import { FaFileCode } from "react-icons/fa";
+import { IoIosRocket } from "react-icons/io";
+import { GiElephant } from "react-icons/gi";
 
 export default function App() {
   const [fullScreen, setFull]=useState(false);
 
   const [messages, setMessages] = useState([]);
-  const [yaml,setYAML]=useState("No YAML present");
+  const [yb_yaml,setYbYAML]=useState("No YAML present");
+  const [pg_yaml,setPgYAML]=useState("No YAML present");
   const [yamlMessageId, setYAMLMessageId] = useState(null);
-  const [showYAML, setShowYAML]=useState(false);
+  const [showYAML, setShowYAML]=useState(0);
   const [query, setQuery] = useState("");
   const chatEndRef = useRef(null);
 
@@ -46,8 +48,10 @@ export default function App() {
       if (!res.ok) throw new Error(res.statusText);
   
       const data = await res.json();
-      if(data.yaml!='')
-        setYAML(data.yaml);
+      if(data.yb_yaml!=='')
+        setYbYAML(data.yb_yaml);
+      if(data.pg_yaml!=='')
+        setPgYAML(data.pg_yaml);
       return data.text;
     } catch (err) {
       console.error(err);
@@ -75,7 +79,7 @@ export default function App() {
         msg.id === loadingId ? { ...msg, text: "Running..." } : msg
       )
     );
-    const reply = await fetchReply(query,"http://0.0.0.0:3032/gen_yaml");
+    const reply = await fetchReply(query,"http://localhost:3032/gen_yaml");
     setMessages((prev) =>
       prev.map((msg) =>
         msg.id === loadingId ? { ...msg, text: reply } : msg
@@ -85,7 +89,7 @@ export default function App() {
 
   async function handleRefresh(e) {
     e.preventDefault();
-    await fetchReply("","http://0.0.0.0:3032/refresh");
+    await fetchReply("","http://localhost:3032/refresh");
   }
 
 
@@ -118,12 +122,13 @@ export default function App() {
                   {m.role === "bot" ? (
                     <div className='bot-msg' key={m.id}>
                       <div className='bot-msg-icons'>
-                        <IoIosText className={!showYAML && 'active'} onClick={()=>setShowYAML(false)}/>
-                        <FaFileCode className={showYAML && yamlMessageId==i && 'active'} onClick={()=>{setShowYAML(true); setYAMLMessageId(i)}}/>
+                        <IoIosText className={!showYAML && 'active'} onClick={()=>setShowYAML(0)}/>
+                        <IoIosRocket className={showYAML===1 && yamlMessageId===i && 'active'} onClick={()=>{setShowYAML(1); setYAMLMessageId(i)}}/>
+                        <GiElephant className={showYAML===2 && yamlMessageId===i && 'active'} onClick={()=>{setShowYAML(2); setYAMLMessageId(i)}}/>
                       </div>
-                      {showYAML&&yamlMessageId==i?
+                      {showYAML&&yamlMessageId===i?
                         <SyntaxHighlighter language="yaml" style={atomDark}>
-                          {yaml}
+                          {showYAML===1?yb_yaml:pg_yaml}
                         </SyntaxHighlighter>:
                         <pre style={{ whiteSpace: "pre-wrap" }}>
                           <code>{m.text}</code>
@@ -137,7 +142,7 @@ export default function App() {
               <div ref={chatEndRef} />
             </div>
             <form className='search-box' onSubmit={handleSubmit}>
-              <input type='text' placeholder='Type your Query...' className='search-ip' onChange={(e) => setQuery(e.target.value)} required/>
+              <input type='text' placeholder='Type your Query...' className='search-ip' value={query} onChange={(e) => setQuery(e.target.value)} required/>
               <div className='search-submit'>
                 <p onClick={handleRefresh}>Create Some Magic</p>
                 <button type='submit' onClick={handleSubmit} className='search-submit-btn'>Generate</button>

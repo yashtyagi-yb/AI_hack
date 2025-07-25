@@ -93,8 +93,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 session_store = {}
-saved_yaml = ''
+saved_yb_yaml = ''
+saved_pg_yaml = ''
 
 
 class QueryInput(BaseModel):
@@ -104,8 +106,9 @@ class QueryInput(BaseModel):
 
 @app.post("/refresh")
 async def refresh_memory(input: QueryInput):
-    global saved_yaml
-    saved_yaml = ''
+    global saved_yb_yaml, saved_pg_yaml
+    saved_yb_yaml = ''
+    saved_pg_yaml = ''
     chain = get_chains_for_session(input.session_id, session_store)
     if chain.get("pipeline") and hasattr(chain["pipeline"], "memory"):
         chain["pipeline"].memory.clear()
@@ -115,7 +118,7 @@ async def refresh_memory(input: QueryInput):
 
 @app.post("/gen_yaml")
 async def gen_yaml(input: QueryInput):
-    global saved_yaml  # Declare to modify the global variable
+    global saved_yb_yaml , saved_pg_yaml
     chain = get_chains_for_session(input.session_id, session_store)
 
     pipeline = chain['pipeline']
@@ -124,6 +127,17 @@ async def gen_yaml(input: QueryInput):
 
     if not isinstance(query_text, str) or not query_text.strip():
         return JSONResponse(content={"error": "'query' must be a non-empty string"}, status_code=400)
+
+    response = llm.invoke(
+        f"Check whether this input contains a test id to get status for a test. Here's the input : {query_text.strip()}. If YES answer **only** test id otherwise 0"
+    )
+
+    if(response.content != "0"):
+        output=client.get_test_status(response.content)
+        return JSONResponse(
+            content={"text": output, "yb_yaml": saved_yb_yaml, "pg_yaml": saved_pg_yaml},
+            status_code=200
+        )
 
     yaml_output = pipeline.invoke({"input": query_text.strip()})
     output = yaml_output['text']
@@ -136,14 +150,17 @@ async def gen_yaml(input: QueryInput):
     print(response.content)
 
     if response.content.strip() == "Yes":
-        saved_yaml = output[output.index('###') + 3:output.rindex('###')]
-        output = output[:output.index('###')] + output[output.rindex('###') + 3:]
+        saved_yb_yaml = output[output.index('###') + 3:output.rindex('###')]
+        saved_pg_yaml = output[output.index('$$$') + 3:output.rindex('$$$')]
+        output = output[:output.index('###')] + output[output.rindex('$$$') + 3:]
 
     if "Running your workload..." in output:
+
+
+        print(saved_yb_yaml)
+        print(saved_pg_yaml)
         config = configparser.ConfigParser()
         config.read('config.properties')
-        saved_yb_yaml = ""
-        saved_pg_yaml = ""
         client_yb = PerfServiceClient(config['YB']['endpoint'], config['YB']['username'], config['YB']['password'], config['YB']['client_ip_addr'])
         client_pg = PerfServiceClient(config['PG']['endpoint'], config['PG']['username'], config['PG']['password'], config['PG']['client_ip_addr'])
         test_id_yb = client_yb.run_test(saved_yb_yaml)
@@ -153,10 +170,9 @@ async def gen_yaml(input: QueryInput):
         client_yb.get_test_report(test_id_yb, test_id_pg)
         print(message_yb + message_pg)
 
-
     print(output)
     return JSONResponse(
-        content={"text": output, "yaml": saved_yaml},
+        content={"text": output, "yb_yaml": saved_yb_yaml, "pg_yaml": saved_pg_yaml},
         status_code=200
     )
 

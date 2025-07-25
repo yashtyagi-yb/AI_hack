@@ -2,9 +2,9 @@ from langchain.prompts import ChatPromptTemplate
 from langchain.chains import LLMChain, SequentialChain, ConversationChain
 from langchain.memory import ConversationBufferMemory
 import yaml, json
+import system_req
 
 from langchain_openai import ChatOpenAI
-from langchain_groq import ChatGroq
 import os
 from dotenv import load_dotenv
 import requests
@@ -24,44 +24,40 @@ llm = ChatOpenAI(
     openai_api_key=os.getenv("OPENAI_API_KEY"),
 )
 
-chat_llm = ChatGroq(
-    api_key=os.getenv("GROQ_API_KEY"),
-    model="llama-3.3-70b-versatile",
-    temperature=0.9,
-    max_tokens=None,
-    timeout=None,
-    max_retries=2
-)
-
 def fetch_all_yaml_from_github_dir(owner, repo, folder_path, branch="main"):
-    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{folder_path}?ref={branch}"
-    headers = {"Accept": "application/vnd.github.v3+json"}
 
-    response = requests.get(api_url, headers=headers)
-    if response.status_code != 200:
-        raise Exception(f"Failed to fetch directory: {response.status_code} — {response.text}")
-
-    files = response.json()
     yamls = []
 
-    for file in files:
-        if file['name'].endswith('.yaml') or file['name'].endswith('.yml'):
-            raw_url = file['download_url']
-            raw_response = requests.get(raw_url)
-            if raw_response.status_code == 200:
-                content = raw_response.text
-                yamls.append({file['name']: content})
-            else:
-                print(f"Failed to fetch {file['name']}: {raw_response.status_code}")
+    for folder in folder_path:
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{folder}?ref={branch}"
+        headers = {"Accept": "application/vnd.github.v3+json"}
+
+        response = requests.get(api_url, headers=headers)
+
+        if response.status_code != 200:
+            raise Exception(f"Failed to fetch directory: {response.status_code} — {response.text}")
+
+        files = response.json()
+
+        for file in files:
+            if file['name'].endswith('.yaml') or file['name'].endswith('.yml'):
+                raw_url = file['download_url']
+                raw_response = requests.get(raw_url)
+                if raw_response.status_code == 200:
+                    content = raw_response.text
+                    yamls.append({file['name']: content})
+                else:
+                    print(f"Failed to fetch {file['name']}: {raw_response.status_code}")
 
     return yamls
 
+yaml_dirs = ["config/yugabyte/regression_pipelines/foreign_key/", "config/yugabyte/regression_pipelines/miscellaneous/yugabyte"]
 
 yamls = fetch_all_yaml_from_github_dir("yugabyte", "benchbase",
-                                       "config/yugabyte/regression_pipelines/foreign_key/yugabyte")
-
+                                       yaml_dirs)
 all_yamls=yamls
 
+<<<<<<< HEAD
 SYSTEM_INSTRUCTIONS = """
 You are an agent who generates a query based on user input and helps the user by executing it on Yugabyte for DB micro-benchmarks. Your role is to generate correct YAMLs for Yugabyte benchmark testing.
 
@@ -178,6 +174,9 @@ yaml_prompt = ChatPromptTemplate.from_messages([
     ("system", SYSTEM_INSTRUCTIONS)
 ])
 
+=======
+SYSTEM_INSTRUCTIONS = system_req.INSTRUCTIONS
+>>>>>>> main
 
 def create_chains_for_session():
     global memo
@@ -196,16 +195,7 @@ def create_chains_for_session():
         verbose=False
     )
 
-    chat_pipe = ConversationChain(
-        llm=chat_llm,
-        prompt=ChatPromptTemplate.from_messages([("system",
-                                                  '''Greetings! You are a small talk handler. Your task is to interact with the user till doesn't skip to main task of yaml generation. Also you need to explain whatever user asks if there is some conversation history. Be formal and remember that you are a part of YAML generator project but don't generate any. Don't distract the conversation from the main goal of YAML generation ad give small but relevant outputs. You are made for user interaction ONLY. Conversation so far:{history}'''),
-                                                 ("user", "{history}\nUser: {input}")]),
-        verbose=True,
-        memory=memo
-    )
-
-    return {"pipeline": pipeline, "chat_pipe": chat_pipe}
+    return {"pipeline": pipeline}
 
 def get_chains_for_session(session_id, user_sessions):
     if session_id not in user_sessions:
@@ -236,8 +226,8 @@ async def refresh_memory(input: QueryInput):
     global saved_yaml
     saved_yaml = ''
     chain = get_chains_for_session(input.session_id, session_store)
-    if chain.get("chat_pipe") and hasattr(chain["chat_pipe"], "memory"):
-        chain["chat_pipe"].memory.clear()
+    if chain.get("pipeline") and hasattr(chain["pipeline"], "memory"):
+        chain["pipeline"].memory.clear()
         return {"status": "success", "message": "Memory refreshed."}
     return {"status": "error", "message": "Memory not found."}
 
@@ -248,7 +238,6 @@ async def gen_yaml(input: QueryInput):
     chain = get_chains_for_session(input.session_id, session_store)
 
     pipeline = chain['pipeline']
-    chat_pipe = chain['chat_pipe']
 
     query_text = input.query
 
@@ -270,16 +259,17 @@ async def gen_yaml(input: QueryInput):
     output = yaml_output['text']
     print(output)
 
-    response = chat_llm.invoke(
+    response = llm.invoke(
         f"Check whether this output contains a YAML file or not. Here's the output : {output}. Answer **only** either 'Yes' or 'No'"
     )
+
     print(response.content)
 
     if response.content.strip() == "Yes":
         saved_yaml = output[output.index('###') + 3:output.rindex('###')]
         output = output[:output.index('###')] + output[output.rindex('###') + 3:]
 
-    if "Your workload is running..." in output:
+    if "Running your workload..." in output:
         print(saved_yaml)
         client = PerfServiceClient()
         test_id = client.run_test(saved_yaml)

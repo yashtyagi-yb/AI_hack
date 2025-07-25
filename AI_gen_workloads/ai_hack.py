@@ -111,6 +111,7 @@ You are an agent who generates a query based on user input and helps the user by
 5. Carefully take reference from the Sample YAMLs to understand the syntax of output YAML. Write different workloads for different queries.
 6. Use only the utility functions listed. No custom logic outside of these.
 7. Use empty `bindings` if a query doesn't need dynamic parameters.
+8. In executeRules for workloads like inserts, the rows that needs to be inserted must not conflict with loadRules.
 
 **Sample YAMLs for reference**
 
@@ -253,6 +254,17 @@ async def gen_yaml(input: QueryInput):
 
     if not isinstance(query_text, str) or not query_text.strip():
         return JSONResponse(content={"error": "'query' must be a non-empty string"}, status_code=400)
+
+    response = chat_llm.invoke(
+        f"Check whether this input contains a test id to get status for a test. Here's the input : {query_text.strip()}. If YES answer **only** test id otherwise 0"
+    )
+
+    if(response.content != "0"):
+        output=client.get_test_status(response.content)
+        return JSONResponse(
+            content={"text": output, "yaml": saved_yaml},
+            status_code=200
+        )
 
     yaml_output = pipeline.invoke({"input": query_text.strip()})
     output = yaml_output['text']

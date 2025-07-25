@@ -142,13 +142,12 @@ async def gen_yaml(input: QueryInput):
     if "Running your workload..." in output:
         config = configparser.ConfigParser()
         config.read('config.properties')
-        saved_yaml_yb = ""
-        saved_yaml_pg = ""
-        print(saved_yaml)
+        saved_yb_yaml = ""
+        saved_pg_yaml = ""
         client_yb = PerfServiceClient(config['YB']['endpoint'], config['YB']['username'], config['YB']['password'], config['YB']['client_ip_addr'])
         client_pg = PerfServiceClient(config['PG']['endpoint'], config['PG']['username'], config['PG']['password'], config['PG']['client_ip_addr'])
-        test_id_yb = client_yb.run_test(saved_yaml_yb)
-        test_id_pg = client_pg.run_test(saved_yaml_pg)
+        test_id_yb = client_yb.run_test(saved_yb_yaml)
+        test_id_pg = client_pg.run_test(saved_pg_yaml)
         message_yb = client_yb.get_test_status(test_id_yb)
         message_pg = client_yb.get_test_status(test_id_pg)
         client_yb.get_test_report(test_id_yb, test_id_pg)

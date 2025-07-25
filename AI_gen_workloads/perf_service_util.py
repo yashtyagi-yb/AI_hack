@@ -3,20 +3,25 @@ import yaml
 import requests
 from datetime import datetime, timezone
 import base64
+import configparser
+
+config = configparser.ConfigParser()
+config.read('config.properties')
 
 class PerfServiceClient:
     def __init__(self,
-                 dashboard_url="http://10.9.0.179",
-                 universe_ip="172.151.53.143",
-                 username="yugabyte",
-                 password="Password@321"):
-        self.base_url = dashboard_url + ":8889"
+                 endpoint,
+                 username,
+                 password,
+                 client_ip_addr):
+        self.dashboard_url = config['DEFAULT']['dashboard_url']
+        self.base_url = self.dashboard_url + ":8889"
         self.headers = {'Content-Type': 'application/json'}
-        self.universe_ip = universe_ip
+        self.endpoint = endpoint
         self.username = username
         self.password = password
-        self.dashboard_url = dashboard_url
-        self.cluster_id = "6994002"
+
+        self.client_ip_addr = client_ip_addr
 
     def _build_payload(self):
         return {
@@ -37,7 +42,7 @@ class PerfServiceClient:
                 "config": {
                     "username": self.username,
                     "password": self.password,
-                    "endpoint": self.universe_ip,
+                    "endpoint": self.endpoint,
                     "terminals": 1,
                     "load-balance": True
                 },
@@ -48,7 +53,7 @@ class PerfServiceClient:
         }
 
     def run_test(self, gen_yaml_workload):
-        gen_yaml_workload = gen_yaml_workload.replace("{{endpoint}}", self.universe_ip)
+        gen_yaml_workload = gen_yaml_workload.replace("{{endpoint}}", self.endpoint)
         gen_yaml_workload = gen_yaml_workload.replace("{{username}}", self.username)
         gen_yaml_workload = gen_yaml_workload.replace("{{password}}", self.password)
 
@@ -87,16 +92,19 @@ class PerfServiceClient:
         else:
             return False, f"Failed to get test status: {resp.status_code}"
 
-    def get_test_report(self, test_id):
-        test_id_data = [{
-            "name": test_id,
-            "isBaseline": True,
-            "test_id": test_id
-        }]
+    def get_test_report(self, *test_ids):
+        test_id_data = [
+            {
+                "name": test_id,
+                "isBaseline": True,
+                "test_id": test_id
+            }
+            for test_id in test_ids
+        ]
         test_id_json = json.dumps(test_id_data)
         encoded = base64.b64encode(test_id_json.encode()).decode()
+        # create compare url
         return f"{self.dashboard_url}/report/view/{encoded}"
-
 
 def main():
     client = PerfServiceClient()

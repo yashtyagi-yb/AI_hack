@@ -132,9 +132,9 @@ def main():
     print("hi")
     # Example usage:
     # client_yb = PerfServiceClient(config_prop['YB']['endpoint'], config_prop['YB']['username'], config_prop['YB']['password'],
-                                  config_prop['YB']['client_ip_addr'], config_prop['YB']['provider'])
+    #                              config_prop['YB']['client_ip_addr'], config_prop['YB']['provider'])
     # client_pg = PerfServiceClient(config_prop['PG']['endpoint'], config_prop['PG']['username'], config_prop['PG']['password'],
-                                  config_prop['PG']['client_ip_addr'], config_prop['PG']['provider'])
+    #                              config_prop['PG']['client_ip_addr'], config_prop['PG']['provider'])
     # test_id1 = client_yb.run_test(yb_yaml.yb_yaml)
     # test_id2 = client_pg.run_test(pg_yaml.pg_yaml)
     # time.sleep(300)

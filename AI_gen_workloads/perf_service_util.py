@@ -1,6 +1,6 @@
 import json
 import time
-
+import pg_yaml
 import yaml
 import requests
 from datetime import datetime, timezone
@@ -65,10 +65,10 @@ class PerfServiceClient:
         yaml_data = yaml.safe_load(gen_yaml_workload)
         payload = self._build_payload()
         payload['payload']['user_workload'] = yaml_data
-        payload['region'] = config_prop[self.db_provider]['region']
-        payload['subnet_id'] = config_prop[self.db_provider]['subnet_id']
-        payload['az'] = config_prop[self.db_provider]['az']
-        payload['security_group'] = config_prop[self.db_provider]['security_group']
+        payload['payload']['region'] = config_prop[self.db_provider]['region']
+        payload['payload']['subnet_id'] = config_prop[self.db_provider]['subnet_id']
+        payload['payload']['az'] = config_prop[self.db_provider]['az']
+        payload['payload']['security_group'] = config_prop[self.db_provider]['security_group']
         json_data = json.dumps(payload)
         print(payload)
         url = f"{self.base_url}/tests/"
@@ -129,11 +129,12 @@ class PerfServiceClient:
         return f"{self.dashboard_url}/report/view/{encoded}"
 
 def main():
-    client_yb = PerfServiceClient(config_prop['YB']['endpoint'], config_prop['YB']['username'], config_prop['YB']['password'],
-                                  config_prop['YB']['client_ip_addr'], config_prop['YB']['provider'])
-    client_pg = PerfServiceClient(config_prop['PG']['endpoint'], config_prop['PG']['username'], config_prop['PG']['password'],
-                                  config_prop['PG']['client_ip_addr'], config_prop['PG']['provider'])
+    print("hi")
     # Example usage:
+    # client_yb = PerfServiceClient(config_prop['YB']['endpoint'], config_prop['YB']['username'], config_prop['YB']['password'],
+                                  config_prop['YB']['client_ip_addr'], config_prop['YB']['provider'])
+    # client_pg = PerfServiceClient(config_prop['PG']['endpoint'], config_prop['PG']['username'], config_prop['PG']['password'],
+                                  config_prop['PG']['client_ip_addr'], config_prop['PG']['provider'])
     # test_id1 = client_yb.run_test(yb_yaml.yb_yaml)
     # test_id2 = client_pg.run_test(pg_yaml.pg_yaml)
     # time.sleep(300)

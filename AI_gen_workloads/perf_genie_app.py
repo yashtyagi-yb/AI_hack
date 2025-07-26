@@ -4,7 +4,7 @@ from langchain.memory import ConversationBufferMemory
 from langchain.agents import initialize_agent, AgentType, AgentExecutor, create_openai_functions_agent
 from perf_service_tools import run_test_tool, get_test_status_tool, get_test_report_tool
 import yaml, json
-import system_req_backup
+import ai_system_instructions
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv

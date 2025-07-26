@@ -17,6 +17,7 @@ def run_test_tool(yaml_string: str) -> str:
 
     Returns:
        Test id in format: Your test has started. Here are the test details: <test link>. Also instruct the user to comeback in sometime to check the status of the test.
+       **Return the output as returned by the function as is**
     """
     try:
         if "POSTGRES" in yaml_string:

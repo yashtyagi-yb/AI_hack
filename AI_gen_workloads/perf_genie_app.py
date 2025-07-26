@@ -146,11 +146,13 @@ async def gen_yaml(input: QueryInput):
     agent_output = agent_executor.invoke({"input": query_text})
     output = agent_output.get("output") or agent_output.get("text")
 
-    # response = llm.invoke(
-    #     f"Check whether this output contains a YAML file or not. Here's the output : {output}. Answer **only** either 'Yes' or 'No'"
-    # )
+    response = llm.invoke(
+        f"Check whether this output contains a YAML file or not. Here's the output : {output}. Answer **only** either 'Yes' or 'No'"
+    )
 
+    print("****************")
     print(output)
+    print("****************")
 
     response = llm.invoke(
         f"Does this text contain valid YAML between triple hashes (###)? Reply only 'Yes' or 'No'. Text:\n{output}"
@@ -165,32 +167,36 @@ async def gen_yaml(input: QueryInput):
 
     print(output)
 
-    response = llm.invoke(
-        f"Does this text contain valid test ids ? Reply only 'Yes' or 'No'. Text:\n{output}"
-    )
+    # response = llm.invoke(
+    #     f"Does this text contain valid test ids ? Reply only 'Yes' or 'No'. Text:\n{output}"
+    # )
 
     if "Running your workload..." in output:
         print("Inside Running your workload......................................................")
-        print(saved_yb_yaml)
-        print(saved_pg_yaml)
+        # print(saved_yb_yaml)
+        # print(saved_pg_yaml)
 
 
         agent_executor.memory.chat_memory.add_user_message(f"Use the below YAMLs to run workload.")
         agent_executor.memory.chat_memory.add_user_message(f"Here is the YB YAML workload to use:\n{saved_yb_yaml}")
         agent_executor.memory.chat_memory.add_user_message(f"Here is the PG YAML workload to use:\n{saved_pg_yaml}")
 
-        test_run_output = agent_executor.invoke({"input": input.query})
-        print("Run Test Output:", test_run_output)
 
-        test_status_output = agent_executor.invoke({"input": input.query})
+        # test_run_output = agent_executor.invoke({"input": input.query})
+        # print("Run Test Output:", test_run_output)
+        #
+        # test_status_output = agent_executor.invoke({"input": input.query})
+        # print("Test Status Output:", test_status_output)
+
+        test_status_output = agent_executor.invoke({"input": "Check status"})
         print("Test Status Output:", test_status_output)
 
         output += f"\n\n{test_status_output.get('output') or test_status_output.get('text')}"
-
-        test_report_output = agent_executor.invoke({"input": input.query})
-        print("Test Report Output:", test_status_output)
-
-        output += f"\n\n{test_report_output.get('output') or test_report_output.get('text')}"
+        #
+        # test_report_output = agent_executor.invoke({"input": input.query})
+        # print("Test Report Output:", test_status_output)
+        #
+        # output += f"\n\n{test_report_output.get('output') or test_report_output.get('text')}"
 
         print(output)
 

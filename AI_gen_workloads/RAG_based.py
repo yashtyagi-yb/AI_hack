@@ -7,33 +7,38 @@ from langchain.chat_models import ChatOpenAI
 
 
 def fetch_all_yaml_from_github_dir(owner, repo, folder_path, branch="main"):
-    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{folder_path}?ref={branch}"
-    headers = {"Accept": "application/vnd.github.v3+json"}
 
-    response = requests.get(api_url, headers=headers)
-    if response.status_code != 200:
-        raise Exception(f"Failed to fetch directory: {response.status_code} — {response.text}")
-
-    files = response.json()
     yamls = []
 
-    for file in files:
-        if file['name'].endswith('.yaml') or file['name'].endswith('.yml'):
-            raw_url = file['download_url']
-            raw_response = requests.get(raw_url)
-            if raw_response.status_code == 200:
-                content = raw_response.text
-                yamls.append({file['name']: content})
-            else:
-                print(f"Failed to fetch {file['name']}: {raw_response.status_code}")
+    for folder in folder_path:
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{folder}?ref={branch}"
+        headers = {"Accept": "application/vnd.github.v3+json"}
+
+        response = requests.get(api_url, headers=headers)
+
+        if response.status_code != 200:
+            raise Exception(f"Failed to fetch directory: {response.status_code} — {response.text}")
+
+        files = response.json()
+
+        for file in files:
+            if file['name'].endswith('.yaml') or file['name'].endswith('.yml'):
+                raw_url = file['download_url']
+                raw_response = requests.get(raw_url)
+                if raw_response.status_code == 200:
+                    content = raw_response.text
+                    yamls.append({file['name']: content})
+                else:
+                    print(f"Failed to fetch {file['name']}: {raw_response.status_code}")
 
     return yamls
 
+yaml_dirs = ["config/yugabyte/regression_pipelines/foreign_key/", "config/yugabyte/regression_pipelines/miscellaneous/yugabyte"]
 
 yamls = fetch_all_yaml_from_github_dir("yugabyte", "benchbase",
-                                       "config/yugabyte/regression_pipelines/foreign_key/yugabyte")
-
+                                       yaml_dirs)
 all_yamls=yamls
+
 with open("all_yamls.txt", "w") as f:
     for group in all_yamls:
         for entry in group:

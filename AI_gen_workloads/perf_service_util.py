@@ -1,6 +1,5 @@
 import json
 import time
-
 import yaml
 import requests
 from datetime import datetime, timezone

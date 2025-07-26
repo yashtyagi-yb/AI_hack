@@ -1,21 +1,21 @@
 from langchain.prompts import ChatPromptTemplate
 from langchain.chains import LLMChain, SequentialChain, ConversationChain
 from langchain.memory import ConversationBufferMemory
-import yaml, json
+import json
 import system_req
 import configparser
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
 import requests
-from fastapi import FastAPI, Request
-from fastapi.responses import Response, JSONResponse
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import uvicorn
 import nest_asyncio
 from fastapi.middleware.cors import CORSMiddleware
 from perf_service_util import PerfServiceClient
-from yugabyte_simple_python_app.sample_app import create_user, create_database, store_chat
+from database.sample_app import create_user, store_chat
 
 load_dotenv()
 

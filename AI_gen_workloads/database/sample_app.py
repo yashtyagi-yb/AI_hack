@@ -1,6 +1,7 @@
 import psycopg2
 import psycopg2.extras
 import json
+import uuid
 
 def connect():
     config = {
@@ -53,10 +54,10 @@ def create_database():
                     CREATE TABLE IF NOT EXISTS Chats (
                         chat_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
                         name VARCHAR(100),
-                        messages VARCHAR(10000000),
-                        saved_yb_yaml VARCHAR(10000000),
-                        saved_pg_yaml VARCHAR(10000000),
-                        username VARCHAR(255) UNIQUE,
+                        messages JSONB,
+                        saved_yb_yaml JSONB,
+                        saved_pg_yaml JSONB,
+                        username VARCHAR(255),
                         created_at TIMESTAMP DEFAULT now(),
                         FOREIGN KEY(username) REFERENCES Accounts(username)
                     );
@@ -70,7 +71,7 @@ def create_database():
         exit(1)
     disconnect(yb)
 
-def create_user(id, username, password):
+def create_user(username, password):
     yb=connect()
     try:
         with yb.cursor() as yb_cursor:
@@ -79,8 +80,8 @@ def create_user(id, username, password):
 
         if results == []:
             with yb.cursor() as yb_cursor:
-                insert_stmt = "INSERT INTO Accounts VALUES (%s::uuid, %s, %s)"
-                yb_cursor.execute(insert_stmt, (id, username, password))
+                insert_stmt = "INSERT INTO Accounts(username,password) VALUES (%s, %s)"
+                yb_cursor.execute(insert_stmt, (username, password))
                 yb.commit()
             disconnect(yb)
             return {
@@ -91,7 +92,10 @@ def create_user(id, username, password):
         else:
             if results[0][2] == password:
                 with yb.cursor() as yb_cursor:
-                    yb_cursor.execute("SELECT messages, saved_yb_yaml, saved_pg_yaml FROM Chats where username=%s ORDER BY created_at DESC", (username,))
+                    # yb_cursor.execute("SELECT chat_id, messages, saved_yb_yaml, saved_pg_yaml FROM Chats where username=%s ORDER BY created_at DESC", (username,))
+                    yb_cursor.execute(
+                        "SELECT chat_id, name FROM Chats where username=%s ORDER BY created_at DESC",
+                        (username,))
                     chat_results = yb_cursor.fetchall()
                 disconnect(yb)
                 return {
@@ -115,23 +119,73 @@ def create_user(id, username, password):
         }
 
 
-def store_chat(name, username, msgs, yb_yamls, pg_yamls):
-    yb=connect()
+def store_chat(chat_id, name, username, msgs, yb_yamls, pg_yamls):
+    yb = connect()
     try:
         with yb.cursor() as yb_cursor:
-            # Convert Python lists/dicts to JSON strings
             msgs_json = json.dumps(msgs)
             yb_yamls_json = json.dumps(yb_yamls) if not isinstance(yb_yamls, str) else yb_yamls
             pg_yamls_json = json.dumps(pg_yamls) if not isinstance(pg_yamls, str) else pg_yamls
+            print(chat_id)
+            if chat_id!='-1':
+                update_stmt = """
+                    UPDATE Chats 
+                    SET messages = %s, saved_yb_yaml = %s, saved_pg_yaml = %s 
+                    WHERE chat_id = %s
+                """
+                yb_cursor.execute(update_stmt, (msgs_json, yb_yamls_json, pg_yamls_json, chat_id))
+                message = "Chat Updated Successfully!"
+                yb.commit()
+                return {
+                    "success": True,
+                    "message": message,
+                    "data": None
+                }
 
-            insert_stmt = """
-                INSERT INTO Chats(name, messages, saved_yb_yaml, saved_pg_yaml, username)
-                VALUES (%s, %s, %s, %s, %s)
-            """
-            yb_cursor.execute(insert_stmt, (name, msgs_json, yb_yamls_json, pg_yamls_json, username))
-            yb.commit()
-            print("Chat stored successfully")
+            else:
+                cid = uuid.uuid4()
+                print(cid)
+                insert_stmt = """
+                    INSERT INTO Chats(chat_id, name, messages, saved_yb_yaml, saved_pg_yaml, username)
+                    VALUES (%s::uuid, %s, %s, %s, %s, %s)
+                """
+                yb_cursor.execute(insert_stmt, (str(cid), name, msgs_json, yb_yamls_json, pg_yamls_json, username))
+                message = "Chat Stored Successfully!"
+                yb.commit()
+                return {
+                    "success": True,
+                    "message": message,
+                    "data": str(cid)
+                }
+
     except Exception as e:
-        print("Exception while inserting chat")
+        print("Exception while storing chat")
         print(e)
-    disconnect(yb)
+        return {
+            "success": False,
+            "message": f"Exception occurred: {str(e)}",
+            "data": None
+        }
+    finally:
+        disconnect(yb)
+
+def get_chat(chat_id):
+    yb = connect()
+    try:
+        with yb.cursor() as yb_cursor:
+            yb_cursor.execute("SELECT messages, saved_yb_yaml, saved_pg_yaml FROM Chats where chat_id=%s", (chat_id,))
+            chat_results = yb_cursor.fetchall()
+            disconnect(yb)
+            return {
+                "success": True,
+                "message": "Chat Restored Successfully!",
+                "data": chat_results
+            }
+    except Exception as e:
+        print("exception : ",e)
+        disconnect(yb)
+        return {
+            "success": False,
+            "message": "Error Occured in fetching Chat!",
+            "data": None
+        }

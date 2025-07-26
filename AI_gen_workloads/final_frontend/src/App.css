@@ -77,7 +77,7 @@ html, body {
 .search-submit{
   display: flex;
   flex-direction: row;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   width: 100%;
   padding-top: 10px;
@@ -206,7 +206,12 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin: 10%;
+  padding: 10%;
+  padding-top: 4%;
+}
+
+.login-page h1{
+  font-family: "Montserrat", sans-serif;
 }
 
 .login-form input{
@@ -232,4 +237,19 @@ html, body {
   cursor: pointer;
   font-family: "Montserrat", sans-serif;
   font-weight: 500;
+}
+
+.new-chat{
+  background-color: #22808d;
+  color: white;
+  border: none;
+  text-align: center;
+}
+
+.login-page{
+  width: 40%;
+  text-align: center;
+  border: 2px solid #193639;
+  padding: 5%;
+  border-radius: 25px;
 }

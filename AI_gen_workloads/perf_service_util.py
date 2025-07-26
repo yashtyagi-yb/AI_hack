@@ -109,7 +109,7 @@ class PerfServiceClient:
                 all_completed=False
         if all_completed:
             if len(test_ids) > 1:
-                return_str = return_str + f"\nComparison Report : {self.get_test_report(test_ids, do_status_check=False)}"
+                return_str = return_str + f"\n⚖️Comparison Report : {self.get_test_report(test_ids, do_status_check=False)}"
         return all_completed,return_str
 
     def get_test_report(self, *test_ids, do_status_check=True):

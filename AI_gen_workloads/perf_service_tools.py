@@ -34,14 +34,14 @@ def run_test_tool(yaml_string: str) -> str:
 def get_test_status_tool(test_id: str) -> str:
     """
     This tool lets you get/check the status of a test. When you receive this request, fetch the status of all the test_id.
-    Extract all numeric values and combine them as comma-separated strings enclosed in double quotes. Ignore delimiters like "and", "or", commas, or spaces.
+    **Extract all numeric values and combine them as comma-separated strings enclosed in double quotes. Ignore delimiters like "and", "or", commas, or spaces.**
     Make the report link clickable
     **Return the output as returned by the function as is**
     """
 
     try:
         print("test_id is : " + test_id)
-        args = [item.strip('"') for item in test_id.split('","')]
+        args = [item.strip('"') for item in test_id.split(',')]
         message = _perf_client['YB'].get_test_status(*args)
         return message
     except Exception as e:

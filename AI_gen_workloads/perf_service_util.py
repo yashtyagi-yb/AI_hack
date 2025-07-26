@@ -1,7 +1,6 @@
 import json
 import time
 import yaml
-import yb_yaml, pg_yaml
 import requests
 from datetime import datetime, timezone
 import base64

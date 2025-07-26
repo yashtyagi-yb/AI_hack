@@ -61,7 +61,7 @@ yamls = fetch_all_yaml_from_github_dir("yugabyte", "benchbase",
                                        yaml_dirs)
 all_yamls=yamls
 
-SYSTEM_INSTRUCTIONS = system_req_backup.INSTRUCTIONS
+SYSTEM_INSTRUCTIONS = ai_system_instructions.INSTRUCTIONS
 
 def create_chains_for_session():
     global memo

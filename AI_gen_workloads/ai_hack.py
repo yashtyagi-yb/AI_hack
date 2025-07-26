@@ -15,6 +15,7 @@ import uvicorn
 import nest_asyncio
 from fastapi.middleware.cors import CORSMiddleware
 from perf_service_util import PerfServiceClient
+from yugabyte_simple_python_app.sample_app import create_user, create_database, store_chat
 
 load_dotenv()
 
@@ -103,18 +104,33 @@ class QueryInput(BaseModel):
     session_id: str
     query: str
 
+@app.post("/login")
+async def login(input: QueryInput):
+    data=json.loads(input.query)
+    output=create_user(input.session_id,data['username'],data['password'])
+    return JSONResponse(
+        content={"success": output['success'], 'message': output['message'], 'data': output['data']},
+        status_code=200
+    )
 
 @app.post("/refresh")
 async def refresh_memory(input: QueryInput):
     global saved_yb_yaml, saved_pg_yaml
     saved_yb_yaml = ''
     saved_pg_yaml = ''
+    data=json.loads(input.query)
+    print(data['messages'])
     chain = get_chains_for_session(input.session_id, session_store)
     if chain.get("pipeline") and hasattr(chain["pipeline"], "memory"):
         chain["pipeline"].memory.clear()
-        return {"status": "success", "message": "Memory refreshed."}
-    return {"status": "error", "message": "Memory not found."}
-
+    print(input.query)
+    response = llm.invoke(
+        f"You need to give a relevant name to the chat from user. Here's the input : {str(data['messages'])}. Use only user messages to name the chat. In case no technical chat has happened, name it relevantly. Keep the name short and crisp. Output **only** the name.")
+    store_chat(response.content,str(data['username']),str(data['messages']),str(data['saved_yb_yamls']),str(data['saved_pg_yamls']))
+    return JSONResponse(
+        content={"text": response.content},
+        status_code=200
+    )
 
 @app.post("/gen_yaml")
 async def gen_yaml(input: QueryInput):
@@ -159,7 +175,8 @@ async def gen_yaml(input: QueryInput):
         print(saved_pg_yaml)
         client = PerfServiceClient()
         test_id = client.run_test(saved_yb_yaml)
-        message = client.get_test_status(test_id)
+        status,message = client.get_test_status(test_id)
+        output=message
         print(message)
 
     print(output)

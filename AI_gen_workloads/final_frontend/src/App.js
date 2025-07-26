@@ -12,17 +12,27 @@ import { IoLogIn } from "react-icons/io5";
 import { IoIosText } from "react-icons/io";
 import { IoIosRocket } from "react-icons/io";
 import { GiElephant } from "react-icons/gi";
+import { BsFillChatTextFill } from "react-icons/bs";
+import { IoLogOut } from "react-icons/io5";
 
 export default function App() {
-  const [fullScreen, setFull]=useState(false);
+  const [history, setHistory]=useState([]);
+  const [currHist, setCurrHist]=useState(-1);
+  const [showHis, setShowHis]=useState(false);
+  const [login,setLogin]=useState(0);
+
+  const [username,setUsername] = useState("");
+  const [password,setPassword] = useState("");
 
   const [messages, setMessages] = useState([]);
-  const [yb_yaml,setYbYAML]=useState("No YAML present");
-  const [pg_yaml,setPgYAML]=useState("No YAML present");
+  const [saved_yb_yaml, setSavedYbYaml] = useState([]);
+  const [saved_pg_yaml, setSavedPgYaml] = useState([]);
   const [yamlMessageId, setYAMLMessageId] = useState(null);
   const [showYAML, setShowYAML]=useState(0);
   const [query, setQuery] = useState("");
   const chatEndRef = useRef(null);
+
+  console.log(saved_yb_yaml);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -48,17 +58,14 @@ export default function App() {
       if (!res.ok) throw new Error(res.statusText);
   
       const data = await res.json();
-      if(data.yb_yaml!=='')
-        setYbYAML(data.yb_yaml);
-      if(data.pg_yaml!=='')
-        setPgYAML(data.pg_yaml);
-      return data.text;
+      return data;
     } catch (err) {
       console.error(err);
       return "Sorry, I couldn't reach the server.";
     }
   }
   
+  console.log(username,password);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -82,16 +89,59 @@ export default function App() {
     const reply = await fetchReply(query,"http://localhost:3032/gen_yaml");
     setMessages((prev) =>
       prev.map((msg) =>
-        msg.id === loadingId ? { ...msg, text: reply } : msg
+        msg.id === loadingId ? { ...msg, text: reply.text } : msg
       )
     );
+    setSavedYbYaml((prev) => {
+      if (reply.yb_yaml!=='') {
+        return [...prev, reply.yb_yaml];
+      } else if (prev.length > 0) {
+        return [...prev, prev[prev.length - 1]];
+      } else {
+        return [...prev, "No YAML Present"];
+      }
+    });
+    setSavedPgYaml((prev) => {
+      if (reply.pg_yaml!=='') {
+        return [...prev, reply.pg_yaml];
+      } else if (prev.length > 0) {
+        return [...prev, prev[prev.length - 1]];
+      } else {
+        return [...prev, "No YAML Present"];
+      }
+    });
   }  
 
   async function handleRefresh(e) {
     e.preventDefault();
-    await fetchReply("","http://localhost:3032/refresh");
+    const summary=login==2?null:await fetchReply(JSON.stringify({"username":localStorage.getItem("username"), "messages":messages, "saved_yb_yamls":saved_yb_yaml, "saved_pg_yamls":saved_pg_yaml}),"http://localhost:3032/refresh");
+    setSavedYbYaml([]);
+    setSavedPgYaml([]);
+    setYAMLMessageId(null);
+    setShowYAML(0);
+    setQuery('');
+    setMessages([]);
+    setHistory((prev) =>
+      [summary?.text, ...prev]
+    );
   }
 
+  async function handleLogin(e){
+    e.preventDefault();
+    const summary=await fetchReply(JSON.stringify({ username:username, password:password }),"http://localhost:3032/login");
+    if(summary.success)
+    {
+      localStorage.setItem("username",username);
+      setLogin(2);
+      setUsername('');
+      setPassword('');
+      if(summary.data?.length!==0)
+      {
+        const msgs = summary.data[0][1].replace(/'/g, '"');
+        console.log(JSON.parse(msgs));
+      }
+    }
+  }
 
   return (
     <div className='App'>
@@ -99,18 +149,37 @@ export default function App() {
         <div className='icons'>
           <div className='usable-icons'>
             <GiMagicLamp style={{height:"50px",width:"50px", marginBottom:"20%"}}/>
-            <BsWindowFullscreen style={{height:"30px",width:"30px"}} onClick={()=>setFull(!fullScreen)}/>
-            <FaCirclePlus style={{height:"30px",width:"30px"}}/>
-            <FaLocationArrow style={{height:"30px",width:"30px"}}/>
+            <BsWindowFullscreen style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={()=>setShowHis(!showHis)}/>
+            <button onClick={handleRefresh} disabled={messages.length === 0} style={{ background: "none", border: "none", padding: 0, cursor:"pointer"}}>
+              <FaCirclePlus style={{ height: "30px", width: "30px", color: messages.length === 0 ? "gray" : "black", cursor:"pointer" }} />
+            </button>
+            <FaLocationArrow style={{height:"30px",width:"30px", cursor:"pointer"}}/>
           </div>
           <div className='control-icons'>
-            <IoLogIn style={{height:"30px",width:"30px"}}/>
+            {login===0?<IoLogIn style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={()=>setLogin(1)}/>:login==1?<BsFillChatTextFill style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={()=>setLogin(0)}/>:<IoLogOut style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={(e)=>{handleRefresh(e);setLogin(0);setHistory([])}}/>}
           </div>
         </div>
-        <div className='history'></div>
       </div>
-      <div className='main'>
-        {messages.length?
+      <div className={`history ${!showHis&&"hidden"}`}>
+          <div className={`history-tabs ${currHist===-1&&"current-hist"}`} tabindex="0">Current Chat</div>
+          {history.map((m,i)=>{
+            return <div className={`history-tabs ${currHist===i&&"current-hist"}`} key={i}>{m}</div>
+          })}
+      </div>
+      <div className={`main ${showHis&&"shrinked"}`}>
+        {login===1?
+        <div className='login-page'>
+          <div className='login-main'>
+            <h1>Login to Start <span style={{color:"#22808d"}}>Workloading...</span></h1>
+            <form className='login-form' onSubmit={handleLogin}>
+              <input className='username' type='username' placeholder='Enter Username' value={username} onChange={(e)=>setUsername(e.target.value)} required/>
+              <input className='password' type='password' placeholder='Enter Password' value={password} onChange={(e)=>setPassword(e.target.value)} required/>
+              <button className='login-submit-btn' type='submit'>Login</button>
+            </form>
+          </div>
+        </div>
+        :
+        messages.length?
         <>
           <div className='conversation'>
             <div className='messages'>
@@ -128,7 +197,7 @@ export default function App() {
                       </div>
                       {showYAML&&yamlMessageId===i?
                         <SyntaxHighlighter language="yaml" style={atomDark}>
-                          {showYAML===1?yb_yaml:pg_yaml}
+                          {showYAML===1?saved_yb_yaml[Math.floor(i/2)]:saved_pg_yaml[Math.floor(i/2)]}
                         </SyntaxHighlighter>:
                         <pre style={{ whiteSpace: "pre-wrap" }}>
                           <code>{m.text}</code>

@@ -3,7 +3,7 @@ from langchain.chains import LLMChain, SequentialChain, ConversationChain
 from langchain.memory import ConversationBufferMemory
 import yaml, json
 import system_req
-
+import configparser
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
@@ -157,10 +157,17 @@ async def gen_yaml(input: QueryInput):
     if "Running your workload..." in output:
         print(saved_yb_yaml)
         print(saved_pg_yaml)
-        client = PerfServiceClient()
-        test_id = client.run_test(saved_yb_yaml)
-        message = client.get_test_status(test_id)
-        print(message)
+        config = configparser.ConfigParser()
+        config.read('config.properties')
+        client_yb = PerfServiceClient(config['YB']['endpoint'], config['YB']['username'], config['YB']['password'],
+                                      config['YB']['client_ip_addr'],config['YB']['provider'])
+        client_pg = PerfServiceClient(config['PG']['endpoint'], config['PG']['username'], config['PG']['password'],
+                                      config['PG']['client_ip_addr'],config['PG']['provider'])
+        test_id_yb,msg = client_yb.run_test(saved_yb_yaml)
+        print(msg)
+        test_id_pg,msg = client_pg.run_test(saved_pg_yaml)
+        print(msg)
+        #print(client_yb.get_test_status(test_id_yb, test_id_pg))
 
     print(output)
     return JSONResponse(

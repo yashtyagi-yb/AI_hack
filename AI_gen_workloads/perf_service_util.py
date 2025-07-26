@@ -1,6 +1,6 @@
 import json
 import time
-import pg_yaml
+
 import yaml
 import requests
 from datetime import datetime, timezone
@@ -108,7 +108,8 @@ class PerfServiceClient:
                 return_str = return_str + f"\n⚠️ Failed to fetch status for test {test_id} (HTTP {resp.status_code}"
                 all_completed=False
         if all_completed:
-            return_str = f"\nComparison Report : {self.get_test_report(test_ids, do_status_check=False)}"
+            if len(test_ids) > 1:
+                return_str = f"\nComparison Report : {self.get_test_report(test_ids, do_status_check=False)}"
         return all_completed,return_str
 
     def get_test_report(self, *test_ids, do_status_check=True):

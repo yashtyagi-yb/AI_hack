@@ -6,8 +6,6 @@ import requests
 from datetime import datetime, timezone
 import base64
 import configparser
-import yb_yaml, pg_yaml
-from perf_service_util_1 import get_test_status
 
 config_prop = configparser.ConfigParser()
 config_prop.read('config.properties')

@@ -15,7 +15,7 @@ import uvicorn
 import nest_asyncio
 from fastapi.middleware.cors import CORSMiddleware
 from perf_service_util import PerfServiceClient
-from database.sample_app import create_user, store_chat, get_chat
+from database.aeon_database_util import create_user, store_chat, get_chat
 
 import configparser
 

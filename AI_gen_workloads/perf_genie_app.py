@@ -1,22 +1,20 @@
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import LLMChain, SequentialChain, ConversationChain
 from langchain.memory import ConversationBufferMemory
-from langchain.agents import initialize_agent, AgentType, AgentExecutor, create_openai_functions_agent
+from langchain.agents import AgentExecutor, create_openai_functions_agent
 from perf_service_tools import run_test_tool, get_test_status_tool, get_test_report_tool
-import yaml, json
+import json
 import ai_system_instructions
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
 import requests
-from fastapi import FastAPI, Request
-from fastapi.responses import Response, JSONResponse
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import uvicorn
 import nest_asyncio
 from fastapi.middleware.cors import CORSMiddleware
-from perf_service_util import PerfServiceClient
-
+from database.aeon_database_util import create_user, store_chat, get_chat
 
 load_dotenv()
 
@@ -122,13 +120,41 @@ async def refresh_memory(input: QueryInput):
     global saved_yb_yaml, saved_pg_yaml
     saved_yb_yaml = ''
     saved_pg_yaml = ''
+    data = json.loads(input.query)
     chain = get_chains_for_session(input.session_id, session_store)
     if chain.get("agent_executor") and hasattr(chain["agent_executor"], "memory"):
         chain["agent_executor"].memory.clear()
-        return {"status": "success", "message": "Memory refreshed."}
-    return {"status": "error", "message": "Memory not found."}
+    print(input.query, data['chat_id'])
+    response = llm.invoke(
+            f"You need to give a relevant name to the chat from user. Here's the input : {str(data['messages'])}. Use only user messages to name the chat. In case no technical chat has happened, name it relevantly. Keep the name short and crisp. Output **only** the name.")
+    chat_id = store_chat(str(data['chat_id']), response.content, str(data['username']), data['messages'],
+                             data['saved_yb_yamls'], data['saved_pg_yamls'])
+    print(chat_id)
+    return JSONResponse(
+            content={"text": response.content, "chat_id": chat_id},
+            status_code=200
+    )
 
 
+@app.post("/login")
+async def login(input: QueryInput):
+    data=json.loads(input.query)
+    output=create_user(data['username'],data['password'])
+    return JSONResponse(
+        content={"success": output['success'], 'message': output['message'], 'data': output['data']},
+        status_code=200
+    )
+
+@app.post("/open-chat")
+async def open_chat(input: QueryInput):
+    global saved_yb_yaml, saved_pg_yaml
+    saved_yb_yaml = ''
+    saved_pg_yaml = ''
+    output=get_chat(input.query)
+    return JSONResponse(
+        content={"success": output['success'], 'message': output['message'], 'data': output['data']},
+        status_code=200
+    )
 
 @app.post("/gen_yaml")
 async def gen_yaml(input: QueryInput):

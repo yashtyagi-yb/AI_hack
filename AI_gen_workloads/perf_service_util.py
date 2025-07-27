@@ -1,6 +1,5 @@
 import json
 import time
-
 import yaml
 import requests
 from datetime import datetime, timezone
@@ -70,7 +69,7 @@ class PerfServiceClient:
         payload['payload']['az'] = config_prop[self.db_provider]['az']
         payload['payload']['security_group'] = config_prop[self.db_provider]['security_group']
         json_data = json.dumps(payload)
-        print(payload)
+        # print(payload)
         url = f"{self.base_url}/tests/"
         resp = requests.post(url=url, data=json_data, headers=self.headers, verify=False)
 
@@ -109,7 +108,8 @@ class PerfServiceClient:
                 all_completed=False
         if all_completed:
             if len(test_ids) > 1:
-                return_str = f"\nComparison Report : {self.get_test_report(test_ids, do_status_check=False)}"
+                args = [item.strip('"') for item in test_ids]
+                return_str = return_str + f"\n⚖️Comparison Report : {self.get_test_report(*args, do_status_check=False)}"
         return all_completed,return_str
 
     def get_test_report(self, *test_ids, do_status_check=True):

@@ -115,15 +115,14 @@ async def refresh_memory(input: QueryInput):
     saved_yb_yaml = ''
     saved_pg_yaml = ''
     data = json.loads(input.query)
-    chain = get_chains_for_session(input.session_id, session_store)
-    if chain.get("agent_executor") and hasattr(chain["agent_executor"], "memory"):
-        chain["agent_executor"].memory.clear()
     print(input.query, data['chat_id'])
     response = llm.invoke(
             f"You need to give a relevant name to the chat from user. Here's the input : {str(data['messages'])}. Use only user messages to name the chat. In case no technical chat has happened, name it relevantly. Keep the name short and crisp. Output **only** the name.")
     chat_id = store_chat(str(data['chat_id']), response.content, str(data['username']), data['messages'],
                              data['saved_yb_yamls'], data['saved_pg_yamls'])
-    print(chat_id)
+    print(chat_id, input.session_id)
+    session_store[chat_id['data']]=session_store.get(input.session_id)
+    session_store.pop(input.session_id)
     return JSONResponse(
             content={"text": response.content, "chat_id": chat_id},
             status_code=200
@@ -140,9 +139,6 @@ async def login(input: QueryInput):
 
 @app.post("/open-chat")
 async def open_chat(input: QueryInput):
-    global saved_yb_yaml, saved_pg_yaml
-    saved_yb_yaml = ''
-    saved_pg_yaml = ''
     output=get_chat(input.query)
     return JSONResponse(
         content={"success": output['success'], 'message': output['message'], 'data': output['data']},
@@ -153,8 +149,8 @@ async def open_chat(input: QueryInput):
 async def gen_yaml(input: QueryInput):
 
     global saved_yb_yaml , saved_pg_yaml
+    print(input.session_id)
     chain = get_chains_for_session(input.session_id, session_store)
-
     agent_executor = chain['agent_executor']
 
     query_text = input.query
@@ -176,11 +172,15 @@ async def gen_yaml(input: QueryInput):
     )
 
     print(response.content)
+    print(chain)
 
     if response.content.strip().lower() == "yes":
         saved_yb_yaml = output[output.index('###') + 3:output.rindex('###')]
         saved_pg_yaml = output[output.index('$$$') + 3:output.rindex('$$$')]
         output = output[:output.index('###')] + output[output.rindex('$$$') + 3:]
+
+        chain["saved_yb_yaml"] = saved_yb_yaml
+        chain["saved_pg_yaml"] = saved_pg_yaml
 
     print(output)
 

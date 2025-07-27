@@ -1,20 +1,21 @@
 from langchain.prompts import ChatPromptTemplate
 from langchain.chains import LLMChain, SequentialChain, ConversationChain
 from langchain.memory import ConversationBufferMemory
-import yaml, json
+import json
 import system_req
 import configparser
 from langchain_openai import ChatOpenAI
 import os
 from dotenv import load_dotenv
 import requests
-from fastapi import FastAPI, Request
-from fastapi.responses import Response, JSONResponse
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import uvicorn
 import nest_asyncio
 from fastapi.middleware.cors import CORSMiddleware
 from perf_service_util import PerfServiceClient
+from database.aeon_database_util import create_user, store_chat, get_chat
 
 import configparser
 
@@ -99,24 +100,58 @@ app.add_middleware(
 session_store = {}
 saved_yb_yaml = ''
 saved_pg_yaml = ''
+config = configparser.ConfigParser()
+config.read('config.properties')
+global client_yb, client_pg
+client_yb = PerfServiceClient(config['YB']['endpoint'], config['YB']['username'], config['YB']['password'],
+                              config['YB']['client_ip_addr'],config['YB']['provider'])
+client_pg = PerfServiceClient(config['PG']['endpoint'], config['PG']['username'], config['PG']['password'],
+                              config['PG']['client_ip_addr'],config['PG']['provider'])
 
 
 class QueryInput(BaseModel):
     session_id: str
     query: str
 
+@app.post("/login")
+async def login(input: QueryInput):
+    data=json.loads(input.query)
+    output=create_user(data['username'],data['password'])
+    return JSONResponse(
+        content={"success": output['success'], 'message': output['message'], 'data': output['data']},
+        status_code=200
+    )
+
+@app.post("/open-chat")
+async def open_chat(input: QueryInput):
+    global saved_yb_yaml, saved_pg_yaml
+    saved_yb_yaml = ''
+    saved_pg_yaml = ''
+    output=get_chat(input.query)
+    return JSONResponse(
+        content={"success": output['success'], 'message': output['message'], 'data': output['data']},
+        status_code=200
+    )
 
 @app.post("/refresh")
 async def refresh_memory(input: QueryInput):
     global saved_yb_yaml, saved_pg_yaml
     saved_yb_yaml = ''
     saved_pg_yaml = ''
+    data=json.loads(input.query)
+    print(data['messages'])
     chain = get_chains_for_session(input.session_id, session_store)
     if chain.get("pipeline") and hasattr(chain["pipeline"], "memory"):
         chain["pipeline"].memory.clear()
-        return {"status": "success", "message": "Memory refreshed."}
-    return {"status": "error", "message": "Memory not found."}
-
+    print(input.query, data['chat_id'])
+    response = llm.invoke(
+        f"You need to give a relevant name to the chat from user. Here's the input : {str(data['messages'])}. Use only user messages to name the chat. In case no technical chat has happened, name it relevantly. Keep the name short and crisp. Output **only** the name.")
+    chat_id=store_chat(str(data['chat_id']),response.content,str(data['username']),data['messages'],data['saved_yb_yamls'],data['saved_pg_yamls'])
+    print(chat_id)
+    return JSONResponse(
+        content={"text": response.content,"chat_id":chat_id},
+        status_code=200
+    )
 
 @app.post("/gen_yaml")
 async def gen_yaml(input: QueryInput):
@@ -135,9 +170,10 @@ async def gen_yaml(input: QueryInput):
     )
 
     if(response.content != "0"):
-        output=client.get_test_status(response.content)
+        yb_output=client_yb.get_test_status(response.content)
+        pg_output = client_pg.get_test_status(response.content)
         return JSONResponse(
-            content={"text": output, "yb_yaml": saved_yb_yaml, "pg_yaml": saved_pg_yaml},
+            content={"text": yb_output+"\n"+pg_output, "yb_yaml": saved_yb_yaml, "pg_yaml": saved_pg_yaml},
             status_code=200
         )
 
@@ -159,6 +195,7 @@ async def gen_yaml(input: QueryInput):
     if "Running your workload..." in output:
         print(saved_yb_yaml)
         print(saved_pg_yaml)
+
         config = configparser.ConfigParser()
         config.read('config.properties')
         client_yb = PerfServiceClient(config['YB']['endpoint'], config['YB']['username'], config['YB']['password'],

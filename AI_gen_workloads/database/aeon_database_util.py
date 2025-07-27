@@ -139,7 +139,7 @@ def store_chat(chat_id, name, username, msgs, yb_yamls, pg_yamls):
                 return {
                     "success": True,
                     "message": message,
-                    "data": None
+                    "data": chat_id
                 }
 
             else:

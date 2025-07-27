@@ -4,6 +4,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 import './App.css';
+import LoadingGif from './load.gif';
 import { BsWindowFullscreen } from "react-icons/bs";
 import { GiMagicLamp } from "react-icons/gi";
 import { FaCirclePlus } from "react-icons/fa6";
@@ -16,14 +17,25 @@ import { BsFillChatTextFill } from "react-icons/bs";
 import { IoLogOut } from "react-icons/io5";
 import { styled } from '@mui/material/styles';
 import Tooltip, { tooltipClasses } from '@mui/material/Tooltip';
+import Logo from './logo.png'
 
+function Load({showHis}){
+  return (
+    <div className={`load-page ${showHis&&"shrinked-load-page"}`}>
+      <p>Loading...</p>
+      <img className='load-gif' src={LoadingGif}/>
+    </div>
+  );
+}
 
 export default function App() {
   const [history, setHistory]=useState(JSON.parse(localStorage.getItem("history"))||[]);
   const [historyId, setHistoryId]=useState(JSON.parse(localStorage.getItem("historyId"))||[]);
   const [currHist, setCurrHist]=useState(-1);
   const [showHis, setShowHis]=useState(false);
-  const [login,setLogin]=useState(0);
+  const [login,setLogin]=useState(localStorage.getItem('history')?2:0);
+  const [load,setLoad]=useState(false);
+  const [sessionId, setSessionId]=useState(getSessionId());
 
   const [username,setUsername] = useState("");
   const [password,setPassword] = useState("");
@@ -64,12 +76,11 @@ export default function App() {
   }
 
   async function fetchReply(userText, apiUrl) {
-    const sid=getSessionId();
     try {
       const res = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sid, query: userText }),
+        body: JSON.stringify({ session_id: sessionId, query: userText }),
       });
       if (!res.ok) throw new Error(res.statusText);
   
@@ -129,8 +140,12 @@ export default function App() {
   }  
 
   async function handleRefresh(e) {
+    setLoad(true);
     if(messages.length===0)
+    {
+      setLoad(false);
       return;
+    }
     e?.preventDefault();
     const summary=await fetchReply(JSON.stringify({"chat_id": currHist===-1?-1:historyId[currHist],"username":localStorage.getItem("username"), "messages":messages, "saved_yb_yamls":saved_yb_yaml, "saved_pg_yamls":saved_pg_yaml}),"http://localhost:3032/refresh");
     console.log("get");
@@ -144,19 +159,22 @@ export default function App() {
       setQuery('');
       setMessages([]);
       setCurrHist(-1);
-      if (summary?.chat_id?.data != null) {
+      if (summary?.chat_id?.data != null && !historyId.includes(summary.chat_id.data)) {
         setHistory((prev) => [summary.text, ...prev]);
         setHistoryId((prev) => [summary.chat_id.data, ...prev]);
       }
     }
+    setLoad(false);
   }
   
   async function openChat(indx) {
+    setLoad(true);
     console.log(currHist,historyId[currHist]);
     var output;
     var len=messages.length;
     if(len!==0)
     {
+      setSessionId(historyId[indx]);
       output=await fetchReply(JSON.stringify({"chat_id": currHist===-1?-1:historyId[currHist],"username":localStorage.getItem("username"), "messages":messages, "saved_yb_yamls":saved_yb_yaml, "saved_pg_yamls":saved_pg_yaml}),"http://localhost:3032/refresh");
     }
     if(indx===-1){
@@ -167,10 +185,11 @@ export default function App() {
       setShowYAML(0);
       setQuery('');
       setMessages([]);
+      setLoad(false);
       return;
     }
     const summary=await fetchReply(historyId[indx],"http://localhost:3032/open-chat");
-    if (output?.chat_id?.data != null) {
+    if (output?.chat_id?.data != null && !historyId.includes(output.chat_id.data)) {
       setHistory((prev) => [output.text, ...prev]);
       setHistoryId((prev) => [output.chat_id.data, ...prev]);
     }
@@ -185,10 +204,12 @@ export default function App() {
       }
     }
     currHist===-1 && len>0?setCurrHist(indx+1):setCurrHist(indx);
+    setLoad(false);
   }
 
   async function handleLogin(e){
     e.preventDefault();
+    setLoad(true);
     const summary=await fetchReply(JSON.stringify({ username:username, password:password }),"http://localhost:3032/login");
     console.log(summary);
     if(summary?.success)
@@ -210,10 +231,12 @@ export default function App() {
       localStorage.setItem("history",JSON.stringify(tempHistory));
       localStorage.setItem("historyId",JSON.stringify(tempHistoryId));
     }
+    setLoad(false);
   }
 
   async function handleLogout(e){
     e.preventDefault();
+    setLoad(true);
     if(messages.length>0)
     await fetchReply(JSON.stringify({"chat_id": currHist===-1?-1:historyId[currHist],"username":localStorage.getItem("username"), "messages":messages, "saved_yb_yamls":saved_yb_yaml, "saved_pg_yamls":saved_pg_yaml}),"http://localhost:3032/refresh");
     setLogin(0);
@@ -229,6 +252,7 @@ export default function App() {
     localStorage.removeItem("historyId");
     setHistory([]);
     setHistoryId([]); 
+    setLoad(false);
   }
 
   function LinkifyText({ text }) {
@@ -255,7 +279,7 @@ export default function App() {
       <div className='sidebar'>
         <div className='icons'>
           <div className='usable-icons'>
-            <GiMagicLamp alt="logo" style={{height:"50px",width:"50px", marginBottom:"20%"}}/>
+            <img src={Logo} style={{width:"50px"}}/>
             <BootstrapTooltip title="Show History" arrow placement="right"><BsWindowFullscreen style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={()=>setShowHis(!showHis)}/></BootstrapTooltip>
             <BootstrapTooltip title="New Chat" arrow placement="right"><button onClick={handleRefresh} disabled={messages.length < 2} style={{ background: "none", border: "none", padding: 0, cursor:"pointer"}}>
               <FaCirclePlus style={{ height: "30px", width: "30px", color: messages.length === 0 ? "gray" : "black", cursor:"pointer" }} />
@@ -274,6 +298,7 @@ export default function App() {
             return <div className={`history-tabs ${currHist===i&&"current-hist"}`} onClick={()=>openChat(i)} key={i}>{m}</div>
           })}
       </div>
+      {load?<Load showHis={showHis}/>:
       <div className={`main ${showHis&&"shrinked"}`}>
         {login===1?
         <div className='login-page'>
@@ -337,7 +362,7 @@ export default function App() {
               </div>
             </form>
         </>}
-      </div>
+      </div>}
     </div>
   );
 }

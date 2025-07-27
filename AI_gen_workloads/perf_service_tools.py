@@ -10,7 +10,7 @@ _perf_client = {"YB": PerfServiceClient(config['YB']['endpoint'], config['YB']['
 @tool
 def run_test_tool(yaml_string: str) -> str:
     """
-    This tool helps agent to execute the test. You will receive a YAML in string formart which you should use to run the test.
+    This tool helps agent to execute the test. You will receive a YAML in string format which you should use to run the test.
 
     Args:
         yaml_string: YAML file in string format

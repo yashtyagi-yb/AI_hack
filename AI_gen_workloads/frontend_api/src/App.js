@@ -303,7 +303,7 @@ export default function App() {
         {login===1?
         <div className='login-page'>
           <div className='login-main'>
-            <h1>Login to Perf <span style={{color:"#22808d"}}>Genie</span></h1>
+            <h1>Login to <span style={{color:"#22808d"}}>PerfGenie</span></h1>
             <form className='login-form' onSubmit={handleLogin}>
               <input className='username' type='username' placeholder='Enter Username' value={username} onChange={(e)=>setUsername(e.target.value)} required/>
               <input className='password' type='password' placeholder='Enter Password' value={password} onChange={(e)=>setPassword(e.target.value)} required/>
@@ -353,7 +353,7 @@ export default function App() {
           </div>
         </>
         :<>
-          <h1>Welcome to Perf <span style={{color:"#22808d"}}>Genie</span></h1>
+          <h1>Welcome to <span style={{color:"#22808d"}}>PerfGenie</span></h1>
             <form className='search-box' onSubmit={handleSubmit}>
               <input type='text' placeholder='Type your Query...' className='search-ip' onChange={(e) => setQuery(e.target.value)} required/>
               <div className='search-submit'>

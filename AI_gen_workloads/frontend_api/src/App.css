@@ -152,6 +152,8 @@ html, body {
 
 .msg{
   margin: 10px 0;
+  max-width: 70%;
+  word-wrap: break-word;
 }
 
 .user{
@@ -305,3 +307,23 @@ html, body {
 .expanded-title-tab{
   width: 90% !important;
 }
+
+/* .typing-text{
+  overflow: hidden;
+  border-right: .15em solid orange;
+  margin: 0 auto;
+  letter-spacing: .15em;
+  animation: 
+    typing 3.5s steps(40, end),
+    blink-caret .75s step-end infinite;
+}
+
+@keyframes typing {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+@keyframes blink-caret {
+  from, to { border-color: transparent;}
+  50% { border-color: orange; }
+} */

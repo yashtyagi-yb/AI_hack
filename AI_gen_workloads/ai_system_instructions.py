@@ -143,8 +143,9 @@ Should always show
 Individual query should be part of queries list with each having Workload which has multiple queries part of single transaction should be 
 
 ** Binding variable range rules **
-1. In case of insert queries, if 100 rows are inserted in load phase - then in execute phase start range for 101 onward. Use a large range so that the test is not short of unique values.
-2. In case of updates queries, , if 100 rows are inserted in load phase - then in execute phase reuse the range from 1-100. Also use **CyclicSeqIntGen** in such cases.
+1. In execute phase ***always use ? for binding parameters/variable***
+2.In case of insert queries, if 100 rows are inserted in load phase - then in execute phase start range for 101 onward. Use a large range so that the test is not short of unique values.
+3. In case of updates queries, , if 100 rows are inserted in load phase - then in execute phase reuse the range from 1-100. Also use **CyclicSeqIntGen** in such cases.
 
 **YAML Template Format for Yugabyte hash sharded tables**
 

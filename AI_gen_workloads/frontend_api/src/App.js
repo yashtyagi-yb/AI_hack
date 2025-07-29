@@ -6,7 +6,6 @@ import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import './App.css';
 import LoadingGif from './load.gif';
 import { BsWindowFullscreen } from "react-icons/bs";
-import { GiMagicLamp } from "react-icons/gi";
 import { FaCirclePlus } from "react-icons/fa6";
 import { FaLocationArrow } from "react-icons/fa";
 import { IoLogIn } from "react-icons/io5";
@@ -29,12 +28,13 @@ function Load({showHis}){
 }
 
 export default function App() {
-  const [history, setHistory]=useState(JSON.parse(localStorage.getItem("history"))||[]);
-  const [historyId, setHistoryId]=useState(JSON.parse(localStorage.getItem("historyId"))||[]);
+  const [history, setHistory]=useState([]);
+  const [historyId, setHistoryId]=useState([]);
   const [currHist, setCurrHist]=useState(-1);
   const [showHis, setShowHis]=useState(false);
-  const [login,setLogin]=useState(localStorage.getItem('history')?2:0);
+  const [login,setLogin]=useState(localStorage.getItem('id')?2:0);
   const [load,setLoad]=useState(false);
+  const [msgLoad, setMsgLoad]=useState(false);
   const [sessionId, setSessionId]=useState(getSessionId());
 
   const [username,setUsername] = useState("");
@@ -48,11 +48,14 @@ export default function App() {
   const [query, setQuery] = useState("");
   const chatEndRef = useRef(null);
 
-  console.log(saved_yb_yaml);
-
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(()=>{
+    if(localStorage.getItem('id'))
+    getChatHistory();
+  },[]);
 
   const BootstrapTooltip = styled(({ className, ...props }) => (
     <Tooltip {...props} arrow classes={{ popper: className }} />
@@ -67,32 +70,40 @@ export default function App() {
   }));
 
   function getSessionId() {
-    let sessionId = localStorage.getItem("session_id");
-    if (!sessionId) {
-      const sessionId = uuidv4();
-      localStorage.setItem("session_id", sessionId);
+    if(localStorage.getItem('id'))
+    {
+      let sessionId = localStorage.getItem("session_id");
+      if (!sessionId) {
+        sessionId = uuidv4();
+        localStorage.setItem("session_id", sessionId);
+      }
+      return sessionId;
     }
-    return sessionId;
+    else
+    return uuidv4();
   }
 
-  async function fetchReply(userText, apiUrl) {
+  async function fetchReply(userText, apiUrl, overrideSessionId = null) {
+    setMsgLoad(true);
+    const sid = overrideSessionId || sessionId;
+    console.log('isse maari bhai ',sid, "ispe maari bhai ",apiUrl);
     try {
       const res = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sessionId, query: userText }),
+        body: JSON.stringify({ session_id: sid, query: userText }),
       });
       if (!res.ok) throw new Error(res.statusText);
   
       const data = await res.json();
+      setMsgLoad(false);
       return data;
     } catch (err) {
       console.error(err);
+      setMsgLoad(false);
       return "Sorry, I couldn't reach the server.";
     }
   }
-  
-  console.log(username,password);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -147,10 +158,10 @@ export default function App() {
       return;
     }
     e?.preventDefault();
-    const summary=await fetchReply(JSON.stringify({"chat_id": currHist===-1?-1:historyId[currHist],"username":localStorage.getItem("username"), "messages":messages, "saved_yb_yamls":saved_yb_yaml, "saved_pg_yamls":saved_pg_yaml}),"http://localhost:3032/refresh");
-    console.log("get");
-    console.log(summary);
-    if(summary?.chat_id?.success)
+    setSessionId(getSessionId());
+    const summary=await fetchReply(JSON.stringify({"chat_id": currHist===-1?-1:historyId[currHist],"acc_id":localStorage.getItem("id"), "messages":messages, "saved_yb_yamls":saved_yb_yaml, "saved_pg_yamls":saved_pg_yaml}),"http://localhost:3032/refresh",getSessionId());
+
+    if(summary.chat_id.success)
     {
       setSavedYbYaml([]);
       setSavedPgYaml([]);
@@ -168,14 +179,18 @@ export default function App() {
   }
   
   async function openChat(indx) {
+    if(indx===currHist)
+      return;
     setLoad(true);
-    console.log(currHist,historyId[currHist]);
     var output;
     var len=messages.length;
+    setSessionId(historyId[indx]);
     if(len!==0)
     {
-      setSessionId(historyId[indx]);
-      output=await fetchReply(JSON.stringify({"chat_id": currHist===-1?-1:historyId[currHist],"username":localStorage.getItem("username"), "messages":messages, "saved_yb_yamls":saved_yb_yaml, "saved_pg_yamls":saved_pg_yaml}),"http://localhost:3032/refresh");
+      if(currHist==-1)
+        output=await fetchReply(JSON.stringify({"chat_id": currHist===-1?-1:historyId[currHist],"acc_id":localStorage.getItem("id"), "messages":messages, "saved_yb_yamls":saved_yb_yaml, "saved_pg_yamls":saved_pg_yaml}),"http://localhost:3032/refresh", getSessionId());
+      else
+        output=await fetchReply(JSON.stringify({"chat_id": currHist===-1?-1:historyId[currHist],"acc_id":localStorage.getItem("id"), "messages":messages, "saved_yb_yamls":saved_yb_yaml, "saved_pg_yamls":saved_pg_yaml}),"http://localhost:3032/refresh",historyId[indx]);
     }
     if(indx===-1){
       setCurrHist(-1);
@@ -211,25 +226,33 @@ export default function App() {
     e.preventDefault();
     setLoad(true);
     const summary=await fetchReply(JSON.stringify({ username:username, password:password }),"http://localhost:3032/login");
-    console.log(summary);
     if(summary?.success)
     {
-      localStorage.setItem("username",username);
       setLogin(2);
+      localStorage.setItem("id",summary?.data);
+      setSessionId(getSessionId());
+      getChatHistory();
+    }
+    setLoad(false);
+  }
+
+  async function getChatHistory(){
+    setLoad(true);
+    const summary=await fetchReply(JSON.stringify({ id:localStorage.getItem('id') }),"http://localhost:3032/get-chat-history");
+    if(summary?.success)
+    {
       const data = summary?.data || [];
 
       const tempHistory = [];
       const tempHistoryId = [];
 
       data.forEach(innerList => {
-        tempHistory.unshift(innerList[1]);
-        tempHistoryId.unshift(innerList[0]);
+        tempHistory.push(innerList[1]);
+        tempHistoryId.push(innerList[0]);
       });
 
       setHistory(tempHistory);
       setHistoryId(tempHistoryId);
-      localStorage.setItem("history",JSON.stringify(tempHistory));
-      localStorage.setItem("historyId",JSON.stringify(tempHistoryId));
     }
     setLoad(false);
   }
@@ -238,8 +261,9 @@ export default function App() {
     e.preventDefault();
     setLoad(true);
     if(messages.length>0)
-    await fetchReply(JSON.stringify({"chat_id": currHist===-1?-1:historyId[currHist],"username":localStorage.getItem("username"), "messages":messages, "saved_yb_yamls":saved_yb_yaml, "saved_pg_yamls":saved_pg_yaml}),"http://localhost:3032/refresh");
+    await fetchReply(JSON.stringify({"chat_id": currHist===-1?-1:historyId[currHist],"acc_id":localStorage.getItem("id"), "messages":messages, "saved_yb_yamls":saved_yb_yaml, "saved_pg_yamls":saved_pg_yaml}),"http://localhost:3032/refresh");
     setLogin(0);
+    setShowHis(false);
     setCurrHist(-1); 
     setShowYAML(0);
     setQuery('');
@@ -247,9 +271,9 @@ export default function App() {
     setYAMLMessageId(null);
     setSavedPgYaml([]);
     setSavedYbYaml([]);
-    localStorage.removeItem('username');
-    localStorage.removeItem("history");
-    localStorage.removeItem("historyId");
+    localStorage.removeItem('id');
+    localStorage.removeItem('session_id');
+    setSessionId(getSessionId());
     setHistory([]);
     setHistoryId([]); 
     setLoad(false);
@@ -280,22 +304,29 @@ export default function App() {
         <div className='icons'>
           <div className='usable-icons'>
             <img src={Logo} style={{width:"50px"}}/>
-            <BootstrapTooltip title="Show History" arrow placement="right"><BsWindowFullscreen style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={()=>setShowHis(!showHis)}/></BootstrapTooltip>
-            <BootstrapTooltip title="New Chat" arrow placement="right"><button onClick={handleRefresh} disabled={messages.length < 2} style={{ background: "none", border: "none", padding: 0, cursor:"pointer"}}>
-              <FaCirclePlus style={{ height: "30px", width: "30px", color: messages.length === 0 ? "gray" : "black", cursor:"pointer" }} />
-            </button></BootstrapTooltip>
+            <BootstrapTooltip title={login!==2?"Login to Maintain History":"Show History"} arrow placement="right">
+              <button onClick={()=>setShowHis(!showHis)} style={{ background: "none", border: "none", padding: 0, cursor:"pointer"}} disabled={login!==2 || msgLoad}>
+                <BsWindowFullscreen style={{height:"30px",width:"30px", cursor:"pointer"}}/>
+              </button>
+            </BootstrapTooltip>
+            <BootstrapTooltip title={login!==2?"LogIn to Start New Chat":"New Chat"} arrow placement="right">
+              <button onClick={handleRefresh} disabled={messages.length < 2 || login!==2 || msgLoad} style={{ background: "none", border: "none", padding: 0, cursor:"pointer"}}>
+                <FaCirclePlus style={{ height: "30px", width: "30px", cursor:"pointer" }} />
+              </button>
+            </BootstrapTooltip>
             <BootstrapTooltip title="Perf Service" arrow placement="right"><FaLocationArrow style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={() => window.open("http://10.9.0.179/dashboard", "_blank")}/></BootstrapTooltip>
           </div>
           <div className='control-icons'>
-            
-            {login===0?<BootstrapTooltip title="LOGIN" arrow placement="right"><IoLogIn style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={()=>setLogin(1)}/></BootstrapTooltip>:login===1?<BootstrapTooltip title="CHAT" arrow placement="right"><BsFillChatTextFill style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={()=>setLogin(0)}/></BootstrapTooltip>:<BootstrapTooltip title="LOGOUT" arrow placement="right"><IoLogOut style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={handleLogout}/></BootstrapTooltip>}
+            <button style={{ background: "none", border: "none", padding: 0, cursor:"pointer"}} disabled={msgLoad}>
+              {login===0?<BootstrapTooltip title="LOGIN" arrow placement="right"><IoLogIn style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={()=>{setLogin(1);setMessages([]);}}/></BootstrapTooltip>:login===1?<BootstrapTooltip title="CHAT" arrow placement="right"><BsFillChatTextFill style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={()=>setLogin(0)}/></BootstrapTooltip>:<BootstrapTooltip title="LOGOUT" arrow placement="right"><IoLogOut style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={handleLogout}/></BootstrapTooltip>}
+            </button>
           </div>
         </div>
       </div>
       <div className={`history ${!showHis&&"hidden"}`}>
-          <div className={`history-tabs new-chat ${currHist===-1&&"current-hist"}`} onClick={()=>openChat(-1)} key={-1} disabled={messages.length<2}>New Chat</div>
+          {currHist===-1&&<div className='history-tabs new-chat current-hist' key={-1} disabled={messages.length<2}>New Chat</div>}
           {history.map((m,i)=>{
-            return <div className={`history-tabs ${currHist===i&&"current-hist"}`} onClick={()=>openChat(i)} key={i}>{m}</div>
+            return <div className={`history-tabs ${currHist===i&&"current-hist"}`} onClick={!msgLoad?()=>openChat(i):undefined} key={i}>{m}</div>
           })}
       </div>
       {load?<Load showHis={showHis}/>:
@@ -303,7 +334,7 @@ export default function App() {
         {login===1?
         <div className='login-page'>
           <div className='login-main'>
-            <h1>Login to <span style={{color:"#22808d"}}>PerfGenie</span></h1>
+            <h1>Login to Perf<span style={{color:"#22808d"}}>Genie</span></h1>
             <form className='login-form' onSubmit={handleLogin}>
               <input className='username' type='username' placeholder='Enter Username' value={username} onChange={(e)=>setUsername(e.target.value)} required/>
               <input className='password' type='password' placeholder='Enter Password' value={password} onChange={(e)=>setPassword(e.target.value)} required/>
@@ -315,6 +346,7 @@ export default function App() {
         messages.length?
         <>
           <div className='conversation'>
+            <div className={`title-tab ${!showHis&&"expanded-title-tab"}`}>Perf<span style={{color:"#22808d"}}>Genie</span></div>
             <div className='messages'>
               {messages.map((m, i) => (
                 <div
@@ -347,18 +379,18 @@ export default function App() {
               <input type='text' placeholder='Type your Query...' className='search-ip' value={query} onChange={(e) => setQuery(e.target.value)} required/>
               <div className='search-submit'>
                 {/* <p onClick={handleRefresh}>Create Some Magic</p> */}
-                <button type='submit' onClick={handleSubmit} className='search-submit-btn'>Generate</button>
+                <button type='submit' onClick={handleSubmit} className='search-submit-btn' disabled={msgLoad}>{msgLoad?"Generating...":"Generate"}</button>
               </div>
             </form>
           </div>
         </>
         :<>
-          <h1>Welcome to <span style={{color:"#22808d"}}>PerfGenie</span></h1>
+          <h1>Welcome to Perf<span style={{color:"#22808d"}}>Genie</span></h1>
             <form className='search-box' onSubmit={handleSubmit}>
               <input type='text' placeholder='Type your Query...' className='search-ip' onChange={(e) => setQuery(e.target.value)} required/>
               <div className='search-submit'>
                 {/* <p onClick={handleRefresh}>Create Some Magic</p> */}
-                <button type='submit' onClick={handleSubmit} className='search-submit-btn'>Generate</button>
+                <button type='submit' onClick={handleSubmit} className='search-submit-btn' disabled={msgLoad}>Generate</button>
               </div>
             </form>
         </>}

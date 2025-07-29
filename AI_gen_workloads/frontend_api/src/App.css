@@ -58,8 +58,8 @@ html, body {
 
 .sidebar{
   width: 5%;
-  height: 94vh;
-  margin: 4vh 0vh 4vh 0vh;
+  height: 92vh;
+  padding: 4vh 0vh 4vh 0vh;
   border-right: 1px solid black;
 }
 
@@ -147,10 +147,13 @@ html, body {
   overflow: scroll;
   display: flex;
   flex-direction: column;
+  margin-top: 3vh;
 }
 
 .msg{
   margin: 10px 0;
+  max-width: 70%;
+  word-wrap: break-word;
 }
 
 .user{
@@ -273,6 +276,12 @@ html, body {
   text-align: center;
 }
 
+.new-chat:hover{
+  background-color: white;
+  color: #22808d;
+  border: 2px solid #22808d;
+}
+
 .login-page{
   width: 40%;
   text-align: center;
@@ -280,3 +289,41 @@ html, body {
   padding: 5%;
   border-radius: 25px;
 }
+
+.title-tab{
+  position: fixed;
+  height: 5vh;
+  background-color: white;
+  width: 78%;
+  border-bottom: 2px solid black;
+  font-family: "Montserrat", sans-serif;
+  display: flex;
+  align-items: center;
+  padding-left: 2%;
+  font-size: 25px;
+  border-radius: 20px 20px 0 0;
+}
+
+.expanded-title-tab{
+  width: 90% !important;
+}
+
+/* .typing-text{
+  overflow: hidden;
+  border-right: .15em solid orange;
+  margin: 0 auto;
+  letter-spacing: .15em;
+  animation: 
+    typing 3.5s steps(40, end),
+    blink-caret .75s step-end infinite;
+}
+
+@keyframes typing {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+@keyframes blink-caret {
+  from, to { border-color: transparent;}
+  50% { border-color: orange; }
+} */

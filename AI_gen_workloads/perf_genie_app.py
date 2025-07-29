@@ -14,7 +14,7 @@ from pydantic import BaseModel
 import uvicorn
 import nest_asyncio
 from fastapi.middleware.cors import CORSMiddleware
-from database.aeon_database_util import create_user, store_chat, get_chat
+from database.aeon_database_util import create_user, store_chat, get_chat, get_chats_history
 
 load_dotenv()
 
@@ -118,11 +118,12 @@ async def refresh_memory(input: QueryInput):
     print(input.query, data['chat_id'])
     response = llm.invoke(
             f"You need to give a relevant name to the chat from user. Here's the input : {str(data['messages'])}. Use only user messages to name the chat. In case no technical chat has happened, name it relevantly. Keep the name short and crisp. Output **only** the name.")
-    chat_id = store_chat(str(data['chat_id']), response.content, str(data['username']), data['messages'],
+    chat_id = store_chat(str(data['chat_id']), response.content, str(data['acc_id']), data['messages'],
                              data['saved_yb_yamls'], data['saved_pg_yamls'])
-    print(chat_id, input.session_id)
-    session_store[chat_id['data']]=session_store.get(input.session_id)
-    session_store.pop(input.session_id)
+    print(chat_id['data'], input.session_id)
+    if chat_id['data']!=data['chat_id']:
+        session_store[chat_id['data']]=session_store.get(input.session_id)
+        session_store.pop(input.session_id)
     return JSONResponse(
             content={"text": response.content, "chat_id": chat_id},
             status_code=200
@@ -132,6 +133,17 @@ async def refresh_memory(input: QueryInput):
 async def login(input: QueryInput):
     data=json.loads(input.query)
     output=create_user(data['username'],data['password'])
+    print(output)
+    return JSONResponse(
+        content={"success": output['success'], 'message': output['message'], 'data': output['data']},
+        status_code=200
+    )
+
+@app.post("/get-chat-history")
+async def get_chat_history(input: QueryInput):
+    id = json.loads(input.query)['id']
+    print(json.loads(input.query))
+    output = get_chats_history(id)
     return JSONResponse(
         content={"success": output['success'], 'message': output['message'], 'data': output['data']},
         status_code=200
@@ -165,34 +177,11 @@ async def gen_yaml(input: QueryInput):
         f"Check whether this output contains a YAML file or not. Here's the output : {output}. Answer **only** either 'Yes' or 'No'"
     )
 
-    print(output)
-
-    response = llm.invoke(
-        f"Does this text contain valid YAML between triple hashes (###)? Reply only 'Yes' or 'No'. Text:\n{output}"
-    )
-
-    print(response.content)
-    print(chain)
-
     if response.content.strip().lower() == "yes":
         saved_yb_yaml = output[output.index('###') + 3:output.rindex('###')]
         saved_pg_yaml = output[output.index('$$$') + 3:output.rindex('$$$')]
         output = output[:output.index('###')] + output[output.rindex('$$$') + 3:]
 
-        chain["saved_yb_yaml"] = saved_yb_yaml
-        chain["saved_pg_yaml"] = saved_pg_yaml
-
-    print(output)
-
-    if "Running your workload..." in output:
-        print("Inside Running your workload......................................................")
-
-        agent_executor.memory.chat_memory.add_user_message(f"Use the below YAMLs to run workload.")
-        agent_executor.memory.chat_memory.add_user_message(f"Here is the YB YAML workload to use:\n{saved_yb_yaml}")
-        agent_executor.memory.chat_memory.add_user_message(f"Here is the PG YAML workload to use:\n{saved_pg_yaml}")
-
-    
-    print(output)
     return JSONResponse(
         content={"text": output, "yb_yaml": saved_yb_yaml, "pg_yaml": saved_pg_yaml},
         status_code=200

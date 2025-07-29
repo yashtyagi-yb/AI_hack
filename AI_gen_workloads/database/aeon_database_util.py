@@ -57,9 +57,9 @@ def create_database():
                         messages JSONB,
                         saved_yb_yaml JSONB,
                         saved_pg_yaml JSONB,
-                        username VARCHAR(255),
+                        acc_id UUID,
                         created_at TIMESTAMP DEFAULT now(),
-                        FOREIGN KEY(username) REFERENCES Accounts(username)
+                        FOREIGN KEY(acc_id) REFERENCES Accounts(id)
                     );
                 """
             yb_cursor.execute(create_table_stmt)
@@ -80,28 +80,23 @@ def create_user(username, password):
 
         if results == []:
             with yb.cursor() as yb_cursor:
-                insert_stmt = "INSERT INTO Accounts(username,password) VALUES (%s, %s)"
-                yb_cursor.execute(insert_stmt, (username, password))
+                id = uuid.uuid4()
+                insert_stmt = "INSERT INTO Accounts(id, username,password) VALUES (%s::uuid, %s, %s)"
+                yb_cursor.execute(insert_stmt, (str(id), username, password))
                 yb.commit()
             disconnect(yb)
             return {
                 "success": True,
                 "message": "User created successfully",
-                "data": None
+                "data": str(id)
             }
         else:
             if results[0][2] == password:
-                with yb.cursor() as yb_cursor:
-                    # yb_cursor.execute("SELECT chat_id, messages, saved_yb_yaml, saved_pg_yaml FROM Chats where username=%s ORDER BY created_at DESC", (username,))
-                    yb_cursor.execute(
-                        "SELECT chat_id, name FROM Chats where username=%s ORDER BY created_at DESC",
-                        (username,))
-                    chat_results = yb_cursor.fetchall()
                 disconnect(yb)
                 return {
                     "success": True,
                     "message": "Login successful",
-                    "data": chat_results
+                    "data": results[0][0]
                 }
             else:
                 disconnect(yb)
@@ -119,7 +114,7 @@ def create_user(username, password):
         }
 
 
-def store_chat(chat_id, name, username, msgs, yb_yamls, pg_yamls):
+def store_chat(chat_id, name, acc_id, msgs, yb_yamls, pg_yamls):
     yb = connect()
     try:
         with yb.cursor() as yb_cursor:
@@ -146,10 +141,10 @@ def store_chat(chat_id, name, username, msgs, yb_yamls, pg_yamls):
                 cid = uuid.uuid4()
                 print(cid)
                 insert_stmt = """
-                    INSERT INTO Chats(chat_id, name, messages, saved_yb_yaml, saved_pg_yaml, username)
-                    VALUES (%s::uuid, %s, %s, %s, %s, %s)
+                    INSERT INTO Chats(chat_id, name, messages, saved_yb_yaml, saved_pg_yaml, acc_id)
+                    VALUES (%s::uuid, %s, %s, %s, %s, %s::uuid)
                 """
-                yb_cursor.execute(insert_stmt, (str(cid), name, msgs_json, yb_yamls_json, pg_yamls_json, username))
+                yb_cursor.execute(insert_stmt, (str(cid), name, msgs_json, yb_yamls_json, pg_yamls_json, str(acc_id)))
                 message = "Chat Stored Successfully!"
                 yb.commit()
                 return {
@@ -189,3 +184,17 @@ def get_chat(chat_id):
             "message": "Error Occured in fetching Chat!",
             "data": None
         }
+
+def get_chats_history(id):
+    yb = connect()
+    with yb.cursor() as yb_cursor:
+        yb_cursor.execute(
+            "SELECT chat_id, name FROM Chats where acc_id=%s ORDER BY created_at DESC",
+            (id,))
+        chat_results = yb_cursor.fetchall()
+    disconnect(yb)
+    return {
+        "success": True,
+        "message": "Login successful",
+        "data": chat_results
+    }

@@ -150,7 +150,7 @@ export default function App() {
     const summary=await fetchReply(JSON.stringify({"chat_id": currHist===-1?-1:historyId[currHist],"username":localStorage.getItem("username"), "messages":messages, "saved_yb_yamls":saved_yb_yaml, "saved_pg_yamls":saved_pg_yaml}),"http://localhost:3032/refresh");
     console.log("get");
     console.log(summary);
-    if(summary.chat_id.success)
+    if(summary?.chat_id?.success)
     {
       setSavedYbYaml([]);
       setSavedPgYaml([]);

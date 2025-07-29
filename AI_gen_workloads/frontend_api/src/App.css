@@ -147,6 +147,7 @@ html, body {
   overflow: scroll;
   display: flex;
   flex-direction: column;
+  margin-top: 3vh;
 }
 
 .msg{
@@ -285,4 +286,22 @@ html, body {
   border: 2px solid #193639;
   padding: 5%;
   border-radius: 25px;
+}
+
+.title-tab{
+  position: fixed;
+  height: 5vh;
+  background-color: white;
+  width: 78%;
+  border-bottom: 2px solid black;
+  font-family: "Montserrat", sans-serif;
+  display: flex;
+  align-items: center;
+  padding-left: 2%;
+  font-size: 25px;
+  border-radius: 20px 20px 0 0;
+}
+
+.expanded-title-tab{
+  width: 90% !important;
 }

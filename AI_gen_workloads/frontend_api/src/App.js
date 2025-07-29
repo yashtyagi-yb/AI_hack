@@ -34,6 +34,7 @@ export default function App() {
   const [showHis, setShowHis]=useState(false);
   const [login,setLogin]=useState(localStorage.getItem('id')?2:0);
   const [load,setLoad]=useState(false);
+  const [msgLoad, setMsgLoad]=useState(false);
   const [sessionId, setSessionId]=useState(getSessionId());
 
   const [username,setUsername] = useState("");
@@ -83,6 +84,7 @@ export default function App() {
   }
 
   async function fetchReply(userText, apiUrl, overrideSessionId = null) {
+    setMsgLoad(true);
     const sid = overrideSessionId || sessionId;
     console.log('isse maari bhai ',sid, "ispe maari bhai ",apiUrl);
     try {
@@ -94,9 +96,11 @@ export default function App() {
       if (!res.ok) throw new Error(res.statusText);
   
       const data = await res.json();
+      setMsgLoad(false);
       return data;
     } catch (err) {
       console.error(err);
+      setMsgLoad(false);
       return "Sorry, I couldn't reach the server.";
     }
   }
@@ -301,27 +305,28 @@ export default function App() {
           <div className='usable-icons'>
             <img src={Logo} style={{width:"50px"}}/>
             <BootstrapTooltip title={login!==2?"Login to Maintain History":"Show History"} arrow placement="right">
-              <button onClick={()=>setShowHis(!showHis)} style={{ background: "none", border: "none", padding: 0, cursor:"pointer"}} disabled={login!==2}>
+              <button onClick={()=>setShowHis(!showHis)} style={{ background: "none", border: "none", padding: 0, cursor:"pointer"}} disabled={login!==2 || msgLoad}>
                 <BsWindowFullscreen style={{height:"30px",width:"30px", cursor:"pointer"}}/>
               </button>
             </BootstrapTooltip>
             <BootstrapTooltip title={login!==2?"LogIn to Start New Chat":"New Chat"} arrow placement="right">
-              <button onClick={handleRefresh} disabled={messages.length < 2 || login!==2} style={{ background: "none", border: "none", padding: 0, cursor:"pointer"}}>
+              <button onClick={handleRefresh} disabled={messages.length < 2 || login!==2 || msgLoad} style={{ background: "none", border: "none", padding: 0, cursor:"pointer"}}>
                 <FaCirclePlus style={{ height: "30px", width: "30px", cursor:"pointer" }} />
               </button>
             </BootstrapTooltip>
             <BootstrapTooltip title="Perf Service" arrow placement="right"><FaLocationArrow style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={() => window.open("http://10.9.0.179/dashboard", "_blank")}/></BootstrapTooltip>
           </div>
           <div className='control-icons'>
-            
-            {login===0?<BootstrapTooltip title="LOGIN" arrow placement="right"><IoLogIn style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={()=>{setLogin(1);setMessages([]);}}/></BootstrapTooltip>:login===1?<BootstrapTooltip title="CHAT" arrow placement="right"><BsFillChatTextFill style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={()=>setLogin(0)}/></BootstrapTooltip>:<BootstrapTooltip title="LOGOUT" arrow placement="right"><IoLogOut style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={handleLogout}/></BootstrapTooltip>}
+            <button style={{ background: "none", border: "none", padding: 0, cursor:"pointer"}} disabled={msgLoad}>
+              {login===0?<BootstrapTooltip title="LOGIN" arrow placement="right"><IoLogIn style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={()=>{setLogin(1);setMessages([]);}}/></BootstrapTooltip>:login===1?<BootstrapTooltip title="CHAT" arrow placement="right"><BsFillChatTextFill style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={()=>setLogin(0)}/></BootstrapTooltip>:<BootstrapTooltip title="LOGOUT" arrow placement="right"><IoLogOut style={{height:"30px",width:"30px", cursor:"pointer"}} onClick={handleLogout}/></BootstrapTooltip>}
+            </button>
           </div>
         </div>
       </div>
       <div className={`history ${!showHis&&"hidden"}`}>
           {currHist===-1&&<div className='history-tabs new-chat current-hist' key={-1} disabled={messages.length<2}>New Chat</div>}
           {history.map((m,i)=>{
-            return <div className={`history-tabs ${currHist===i&&"current-hist"}`} onClick={()=>openChat(i)} key={i}>{m}</div>
+            return <div className={`history-tabs ${currHist===i&&"current-hist"}`} onClick={!msgLoad?()=>openChat(i):undefined} key={i}>{m}</div>
           })}
       </div>
       {load?<Load showHis={showHis}/>:
@@ -341,6 +346,7 @@ export default function App() {
         messages.length?
         <>
           <div className='conversation'>
+            <div className={`title-tab ${!showHis&&"expanded-title-tab"}`}>Perf<span style={{color:"#22808d"}}>Genie</span></div>
             <div className='messages'>
               {messages.map((m, i) => (
                 <div
@@ -373,7 +379,7 @@ export default function App() {
               <input type='text' placeholder='Type your Query...' className='search-ip' value={query} onChange={(e) => setQuery(e.target.value)} required/>
               <div className='search-submit'>
                 {/* <p onClick={handleRefresh}>Create Some Magic</p> */}
-                <button type='submit' onClick={handleSubmit} className='search-submit-btn'>Generate</button>
+                <button type='submit' onClick={handleSubmit} className='search-submit-btn' disabled={msgLoad}>{msgLoad?"Generating...":"Generate"}</button>
               </div>
             </form>
           </div>
@@ -384,7 +390,7 @@ export default function App() {
               <input type='text' placeholder='Type your Query...' className='search-ip' onChange={(e) => setQuery(e.target.value)} required/>
               <div className='search-submit'>
                 {/* <p onClick={handleRefresh}>Create Some Magic</p> */}
-                <button type='submit' onClick={handleSubmit} className='search-submit-btn'>Generate</button>
+                <button type='submit' onClick={handleSubmit} className='search-submit-btn' disabled={msgLoad}>Generate</button>
               </div>
             </form>
         </>}

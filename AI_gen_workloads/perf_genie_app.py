@@ -117,7 +117,7 @@ async def refresh_memory(input: QueryInput):
     data = json.loads(input.query)
     print(input.query, data['chat_id'])
     response = llm.invoke(
-            f"You need to give a relevant name to the chat from user. Here's the input : {str(data['messages'])}. Use only user messages to name the chat. In case no technical chat has happened, name it relevantly. Keep the name short and crisp. Output **only** the name.")
+            f"You need to give a relevant name to the chat from user. Do not use database name. Here's the input : {str(data['messages'])}. Use only user messages to name the chat. In case no technical chat has happened, name it relevantly. Keep the name short and crisp. Output **only** the name.")
     chat_id = store_chat(str(data['chat_id']), response.content, str(data['acc_id']), data['messages'],
                              data['saved_yb_yamls'], data['saved_pg_yamls'])
     print(chat_id['data'], input.session_id)
